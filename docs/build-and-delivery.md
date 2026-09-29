@@ -59,7 +59,7 @@ wifi-cameras/
 ├─ native/
 │  ├─ core/                   # pure C++, no jni.h, host-testable
 │  ├─ bindings/               # JNI glue on top of jnirt::runtime
-│  └─ register.hpp            # void register_wificameras(jnirt::Registry&)
+│  └─ register.h              # void register_wificameras(jnirt::Registry&)
 ├─ android/                   # Kotlin API + consumer-rules.pro, no native build
 ├─ standalone/                # optional: JNI_OnLoad for own tests/CI
 └─ tests/
