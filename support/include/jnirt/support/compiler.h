@@ -5,8 +5,9 @@
 #ifndef JNIRT_SUPPORT_COMPILER_H
 #define JNIRT_SUPPORT_COMPILER_H
 
-// Lets the compiler check printf-style arguments. Put it BEFORE the declaration:
-//   JNIRT_PRINTF(2, 3) void f(int x, const char *fmt, ...);
+// Lets the compiler check printf-style arguments. Put it AFTER a free-function declaration:
+//   void f(int x, const char *fmt, ...) JNIRT_PRINTF(2, 3);
+// and BEFORE a constructor or member function that has a body (gcc rejects it after a definition).
 // For member functions, `this` is argument 1.
 #if defined(__GNUC__) || defined(__clang__)
 #define JNIRT_PRINTF(fmtIndex, argsIndex) __attribute__((format(printf, fmtIndex, argsIndex)))

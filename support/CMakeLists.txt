@@ -1,4 +1,5 @@
 add_library(jnirt_support STATIC
+        src/assert.cpp
         src/error.cpp
         src/format.cpp
         src/logging/logging_core.cpp
@@ -18,10 +19,14 @@ target_link_libraries(jnirt_support
         PRIVATE jnirt::options
 )
 
-# Platform sink: exactly one implementation per platform.
+# Platform parts (log sink, abort hook): exactly one implementation per platform.
 if (ANDROID)
-    target_sources(jnirt_support PRIVATE src/android/logging/log_sink_android.cpp)
+    target_sources(jnirt_support PRIVATE
+            src/android/logging/log_sink_android.cpp
+            src/android/abort_android.cpp)
     target_link_libraries(jnirt_support PRIVATE log)   # liblog
 else ()
-    target_sources(jnirt_support PRIVATE src/host/logging/log_sink_stderr.cpp)   # host build and tests
+    target_sources(jnirt_support PRIVATE       # host build and tests
+            src/host/logging/log_sink_stderr.cpp
+            src/host/abort_host.cpp)
 endif ()
