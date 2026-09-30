@@ -120,6 +120,67 @@ Library Gradle modules contain Kotlin only, with no `externalNativeBuild`.
 8. **ProGuard**: each library ships its own `consumer-rules.pro`; native-accessed classes are marked with
    `@NativeAccessed`.
 
+## Working on a library in the IDE
+
+Android Studio indexes C++ only for Gradle modules with `externalNativeBuild`. By rule 1 only `unified` has one, so a
+library repository opened on its own shows its C++ as plain text. The fix is a development-only `.so` in the library
+module, switched on by a Gradle property:
+
+```kotlin
+// wifi-cameras/android/build.gradle.kts
+android {
+    // Library development only: C++ indexing and own device tests. Off inside unified.
+    if (providers.gradleProperty("jnirt.standaloneNative").orNull == "true") {
+        externalNativeBuild { cmake { path = file("../standalone/CMakeLists.txt") } }
+        defaultConfig { ndk { abiFilters += "arm64-v8a" } }
+    }
+}
+```
+
+```properties
+# wifi-cameras/gradle.properties (root of the library repository)
+jnirt.standaloneNative=true
+```
+
+```cmake
+# wifi-cameras/standalone/CMakeLists.txt
+cmake_minimum_required(VERSION 3.22)
+project(wificameras_standalone LANGUAGES CXX)
+add_subdirectory(../third_party/jni-runtime jnirt)   # or wherever the runtime is checked out for development
+add_subdirectory(.. wificameras)
+add_library(wificameras_dev SHARED jni_onload.cpp)   # a name different from unified_native
+target_link_libraries(wificameras_dev PRIVATE wificameras::native jnirt::runtime)
+```
+
+Gradle reads `gradle.properties` only from the root of the build. When `unified` includes the library module, the
+root is `unified`, the property is not set, and the app still gets one `.so` with one `JNI_OnLoad`. `jni-runtime/android`
+uses the same setup with a small `standalone/` whose `JNI_OnLoad` calls `jnirt::init(vm, {})`.
+
+A CI step in `unified` checks that the APK has exactly one of our `.so` exporting `JNI_OnLoad`:
+
+```
+Found 2 native libraries with JNI_OnLoad: libunified_native.so, libwificameras_dev.so.
+why: jnirt.standaloneNative=true is set in unified/gradle.properties; it is meant only for a library opened on its own.
+fix: remove jnirt.standaloneNative from unified/gradle.properties.
+```
+
+Do not split libraries into separate `.so` files in the app to fix indexing (see ADR-0003 §7).
+
+### Red `external fun`
+
+The inspection "Cannot resolve corresponding JNI function" looks for a C function named
+`Java_<package>_<class>_<method>`. Natives are registered with `RegisterNatives` (ADR-0001 §7.4), so such names
+never exist, whatever the build setup. Suppress it on the class with native methods:
+
+```kotlin
+@Suppress("KotlinJniMissingFunction") // natives are registered via RegisterNatives
+internal class CameraNative { external fun connect(host: String): Long }
+```
+
+Keep the native function named like the Kotlin method, and its registration in `bindings/<Class>_jni.cpp`, so a
+name search finds it. That every `external fun` is registered is checked by the self-check in `JNI_OnLoad`, not by
+the IDE. Real navigation comes with codegen (P11).
+
 ## Submodule workflow
 
 - Each submodule is pinned to a specific commit or tag.
