@@ -5,7 +5,7 @@
 #include <logging/log_sink.h>
 #include <android/log.h>
 
-namespace support::logging {
+namespace jnirt::logging {
     namespace {
         int toPriority(Level l) {
             switch (l) {

@@ -10,7 +10,7 @@
 #include <cstddef>
 #include <cstdio>
 
-namespace support::logging {
+namespace jnirt::logging {
     namespace {
         constexpr size_t kBufferSize = 1024;
         std::atomic<Level> gLevel{Level::Debug};
@@ -40,4 +40,4 @@ namespace support::logging {
         }
         sinkWrite(level, tag, buf);
     }
-} // namespace support::logging
+} // namespace jnirt::logging

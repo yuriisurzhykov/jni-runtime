@@ -7,7 +7,7 @@
 ## Overview
 
 ```
-P0 Design ─► P1 Build skeleton ─► P2 support (log ✔, error, assert)
+P0 Design ─► P1 Build skeleton ─► P2 support (log ✔, error ✔, assert ✔)
                                         │
                                         ▼
                                P3 Runtime foundation
@@ -77,8 +77,8 @@ checks run.
 | Item                                                                    | Status |
 |-------------------------------------------------------------------------|--------|
 | `log`: levels, filtering, macros, stack buffer, sinks                   | `[x]`  |
-| `error`: error type (code, category, message), `Result<T>` for C++ side | `[ ]`  |
-| `assert`: `JNIRT_CHECK` (log + abort in debug), `JNIRT_UNREACHABLE`     | `[ ]`  |
+| `error`: `jnirt::Error` (domain + code bound to an enum), `IllegalArgument`/`IllegalState` | `[x]`  |
+| `assert`: `JNIRT_REQUIRE` / `CHECK` (throw), `ASSERT` (debug crash), `FATAL` (crash) | `[x]`  |
 
 **Exit criteria:** host tests cover all three; `core/` can depend on `support` only.
 

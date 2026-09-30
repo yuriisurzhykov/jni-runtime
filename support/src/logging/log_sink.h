@@ -9,7 +9,7 @@
 
 #include <jnirt/support/logging/log.h>
 
-namespace support::logging {
+namespace jnirt::logging {
     void sinkWrite(Level level, const char *tag, const char *message) noexcept;
 }
 

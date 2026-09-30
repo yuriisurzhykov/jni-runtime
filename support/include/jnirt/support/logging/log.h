@@ -7,7 +7,7 @@
 #pragma once
 #include <cstdint>
 
-namespace support::logging {
+namespace jnirt::logging {
     enum class Level : uint8_t { Verbose, Debug, Info, Warn, Error };
 
     void setLevel(Level level) noexcept;
@@ -16,5 +16,5 @@ namespace support::logging {
 
     void write(Level level, const char *tag, const char *fmt, ...) noexcept
     __attribute__((format(printf, 3, 4)));
-} // namespace support::logging
+} // namespace jnirt::logging
 #endif //JNIRT_SUPPORT_LOGGING_LOG_H
