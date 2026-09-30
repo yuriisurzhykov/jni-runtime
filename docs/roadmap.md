@@ -86,7 +86,7 @@ checks run.
 
 Build order inside the phase matters:
 
-1. **`vm` / `env`** ([ADR-0003](adr/0003-vm-and-env.md)): cache `JavaVM*`, `env()` (`GetEnv` first), `pthread_key`
+1. `[x]` **`vm` / `env`** ([ADR-0003](adr/0003-vm-and-env.md)): cache `JavaVM*`, `env()` (`GetEnv` first), `pthread_key`
    detach, `detachCurrentThread()`, thread names, attach failure is `FATAL`.
 2. **`ref`**: move-only `LocalRef`, `GlobalRef`, `WeakGlobalRef`; weak refs promote to strong or empty.
 3. **`signature`**: `constexpr` signatures from C++ types (host-testable without a JVM).

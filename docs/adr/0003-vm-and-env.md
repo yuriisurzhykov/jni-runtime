@@ -2,7 +2,8 @@
 
 ## Status
 
-Proposed. Implementation: roadmap P3.1. Walkthrough with examples: [learning/vm-env-by-example.md](../learning/vm-env-by-example.md).
+Proposed. Implementation: roadmap P3.1. Walkthrough with
+examples: [learning/vm-env-by-example.md](../learning/vm-env-by-example.md).
 
 ## Context
 
@@ -49,6 +50,7 @@ available: native threads, `GlobalRef` destructors, callbacks.
 - `setVm` with the same `vm` again is allowed (several `.so` in one process, see §7). A different `vm` is
   `JNIRT_FATAL`.
 - `vm()` before `setVm()` is `JNIRT_FATAL`: it is an integration bug (`jnirt::init` missing in `JNI_OnLoad`).
+- `setVm(nullptr)` is `JNIRT_FATAL`.
 
 ### 3. `env()`
 
@@ -62,8 +64,10 @@ GetEnv(JNI_VERSION_1_6)
 - `JNIEnv*` is not cached, not even in `thread_local`: `GetEnv` is a TLS read in ART.
 - **Regular attach** (`AttachCurrentThread`), not daemon. On Android the difference is irrelevant (the VM is never
   shut down, the process is killed). On a host JVM a daemon thread lets the VM exit under a running native thread.
-- **Thread name**: taken from `pthread_getname_np` and passed in `JavaVMAttachArgs`, so the thread shows up as
-  `camera-rx` in ANR traces and the profiler rather than `Thread-12`. There is no separate API for the name.
+- **Thread name**: the current pthread name (read with `prctl(PR_GET_NAME)`, because `pthread_getname_np` needs
+  API 26) is passed in `JavaVMAttachArgs`, so the thread shows up as `camera-rx` in ANR traces and the profiler.
+  There is no separate API for the name. A new thread inherits its creator's name, so name your threads with
+  `pthread_setname_np` (15 characters at most).
 - **Attach failure** is `JNIRT_FATAL`. It only happens when the VM is out of memory or dying; the caller cannot
   react.
 
@@ -71,13 +75,13 @@ GetEnv(JNI_VERSION_1_6)
 
 - **Automatic.** The `pthread_key` destructor runs when any pthread exits with a non-null value in the key, and
   calls `DetachCurrentThread`. The key is set only by our own attach, so:
-  - a thread attached by someone else (Java thread, other native code) is never touched (ADR-0001 §3.2);
-  - a thread attached by us is detached at exit (§3.3), including SDK threads whose loop we do not own, where no
-    guard object could be placed.
+    - a thread attached by someone else (Java thread, other native code) is never touched (ADR-0001 §3.2);
+    - a thread attached by us is detached at exit (§3.3), including SDK threads whose loop we do not own, where no
+      guard object could be placed.
 - **Manual**, `detachCurrentThread()`:
 
   | Current thread                 | Result                                                                      |
-  |--------------------------------|-----------------------------------------------------------------------------|
+    |--------------------------------|-----------------------------------------------------------------------------|
   | attached by jnirt              | `DetachCurrentThread`, key cleared (no second detach at exit)               |
   | not attached                   | nothing                                                                      |
   | attached by someone else       | `JNIRT_CHECK` fails (`IllegalState`): detaching a thread with Java frames kills the VM |
@@ -98,15 +102,15 @@ jnirt: detachCurrentThread() called with 1 LocalRef still alive on thread "worke
 
 This is only the text passed to `JNIRT_FATAL` / `JNIRT_CHECK`; there is no new mechanism.
 
-| Misuse                                  | Caught by                                   | When         |
-|-----------------------------------------|---------------------------------------------|--------------|
-| `vm()` / `env()` before `jnirt::init`    | runtime, `FATAL`                            | always       |
-| `setVm` with a different `vm`           | runtime, `FATAL`                            | always       |
-| `detachCurrentThread()` on a foreign thread | runtime, `CHECK`                        | always       |
-| detach with live `LocalRef`             | runtime, per-thread `LocalRef` counter (P3.2) | debug      |
-| class lookup on a thread jnirt attached | `jnirt::findClass` (P3.5)                   | debug        |
-| raw `FindClass` / `GetMethodID` in library code | CI check                            | CI           |
-| `JNIEnv*` used on another thread        | CheckJNI (`-Xcheck:jni`, `debug.checkjni`)  | tests, debug devices |
+| Misuse                                          | Caught by                                     | When                 |
+|-------------------------------------------------|-----------------------------------------------|----------------------|
+| `vm()` / `env()` before `jnirt::init`           | runtime, `FATAL`                              | always               |
+| `setVm` with a different `vm`                   | runtime, `FATAL`                              | always               |
+| `detachCurrentThread()` on a foreign thread     | runtime, `CHECK`                              | always               |
+| detach with live `LocalRef`                     | runtime, per-thread `LocalRef` counter (P3.2) | debug                |
+| class lookup on a thread jnirt attached         | `jnirt::findClass` (P3.5)                     | debug                |
+| raw `FindClass` / `GetMethodID` in library code | CI check                                      | CI                   |
+| `JNIEnv*` used on another thread                | CheckJNI (`-Xcheck:jni`, `debug.checkjni`)    | tests, debug devices |
 
 CheckJNI messages are listed in a troubleshooting doc together with our "fix" line. `JNIEnv*` is not wrapped in
 our own type only to detect cross-thread use: CheckJNI already does it.
@@ -140,14 +144,14 @@ shared `libjnirt.so` is a separate ADR, taken when a second `.so` appears.
 One JVM per test binary (gtest `Environment`, `JNI_CreateJavaVM` with `-Xcheck:jni`), never destroyed: HotSpot
 cannot create a second VM in the same process.
 
-| Check                                   | How                                                                            |
-|-----------------------------------------|--------------------------------------------------------------------------------|
-| a foreign attach is left alone          | attach manually, call `env()`, the thread is still attached, detach manually   |
-| our attach is detached at thread exit   | inside `std::thread` keep `Thread.currentThread()` as a global ref; after `join`, `isAlive()` is false |
-| the thread name reaches Java            | `pthread_setname_np("jnirt-test")`, `env()`, `Thread.getName()` matches        |
-| repeated `env()` on one thread          | same `JNIEnv*`, no second attach                                               |
-| manual detach                           | ours: detached, no double detach at exit; not attached: no-op; foreign: `IllegalState` |
-| `vm()` before `setVm()`                 | death test with the expected message                                          |
+| Check                                 | How                                                                                                    |
+|---------------------------------------|--------------------------------------------------------------------------------------------------------|
+| a foreign attach is left alone        | attach manually, call `env()`, the thread is still attached, detach manually                           |
+| our attach is detached at thread exit | inside `std::thread` keep `Thread.currentThread()` as a global ref; after `join`, `isAlive()` is false |
+| the thread name reaches Java          | `pthread_setname_np("jnirt-test")`, `env()`, `Thread.getName()` matches                                |
+| repeated `env()` on one thread        | same `JNIEnv*`, no second attach                                                                       |
+| manual detach                         | ours: detached, no double detach at exit; not attached: no-op; foreign: `IllegalState`                 |
+| `vm()` before `setVm()`               | death test with the expected message                                                                   |
 
 ## Open
 
