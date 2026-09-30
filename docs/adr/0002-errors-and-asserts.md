@@ -8,7 +8,8 @@ Proposed. The C++ side (`support`) is implemented; the Kotlin side and `entry()`
 
 ADR-0001 §6 fixes the rules: C++ exceptions never cross JNI, `entry()` catches everything, recoverable errors become
 `NativeException` with a code, programmer errors become `IllegalArgumentException` / `IllegalStateException`.
-`support` has no `jni.h`, so it can only define the C++ side. Turning C++ errors into Java exceptions is `runtime`'s job.
+`support` has no `jni.h`, so it can only define the C++ side. Turning C++ errors into Java exceptions is `runtime`'s
+job.
 
 ## Decision
 
@@ -16,11 +17,11 @@ ADR-0001 §6 fixes the rules: C++ exceptions never cross JNI, `entry()` catches 
 
 The kind depends on **who is at fault**.
 
-| Kind                  | Who is at fault            | C++                                       | What the caller gets                                     |
-|-----------------------|----------------------------|-------------------------------------------|----------------------------------------------------------|
-| **Programmer error**  | the code that calls us     | `JNIRT_REQUIRE` / `JNIRT_CHECK`           | Kotlin: `IllegalArgumentException` / `IllegalStateException`. Pure C++: process terminates, tombstone |
-| **Recoverable error** | the outside world          | `throw jnirt::Error(Errc::X, "text")`     | Kotlin: `NativeException(domain, code)` → library's Kotlin error type |
-| **Invariant error**   | our own code               | `JNIRT_ASSERT` (debug only) / `JNIRT_FATAL` | Process aborts, message in logcat and tombstone        |
+| Kind                  | Who is at fault        | C++                                         | What the caller gets                                                                                  |
+|-----------------------|------------------------|---------------------------------------------|-------------------------------------------------------------------------------------------------------|
+| **Programmer error**  | the code that calls us | `JNIRT_REQUIRE` / `JNIRT_CHECK`             | Kotlin: `IllegalArgumentException` / `IllegalStateException`. Pure C++: process terminates, tombstone |
+| **Recoverable error** | the outside world      | `throw jnirt::Error(Errc::X, "text")`       | Kotlin: `NativeException(domain, code)` → library's Kotlin error type                                 |
+| **Invariant error**   | our own code           | `JNIRT_ASSERT` (debug only) / `JNIRT_FATAL` | Process aborts, message in logcat and tombstone                                                       |
 
 Rule of thumb: a caller's mistake or an environment failure is reported and the caller decides; our own bug is
 never reported, it is a crash.
@@ -67,7 +68,10 @@ class NativeException(val domain: String, val code: Int, message: String?, cause
 
 enum class ErrorKind { Transient, NeedsUser, Fatal }          // runtime, common to all libraries
 
-interface ErrorDomain<E> { val domain: String; fun fromCode(code: Int): E }
+interface ErrorDomain<E> {
+    val domain: String;fun fromCode(code: Int): E
+}
+
 fun <E> NativeException.asError(d: ErrorDomain<E>): E?        // null if the error is from another domain
 ```
 
@@ -80,14 +84,14 @@ fun <E> NativeException.asError(d: ErrorDomain<E>): E?        // null if the err
 
 ### 5. What `entry()` does (P4, contract fixed here)
 
-| Caught                          | Java                                                     |
-|---------------------------------|----------------------------------------------------------|
-| `JavaException` (see below)     | the original `Throwable`, unchanged                      |
-| `IllegalArgument`               | `IllegalArgumentException`                               |
-| `IllegalState`                  | `IllegalStateException`                                  |
-| `jnirt::Error`                  | `NativeException(domain, code, message)`, cause chain    |
-| `std::bad_alloc`                | `OutOfMemoryError`                                       |
-| anything else                   | `NativeException("jnirt", Internal, what())` + log       |
+| Caught                      | Java                                                  |
+|-----------------------------|-------------------------------------------------------|
+| `JavaException` (see below) | the original `Throwable`, unchanged                   |
+| `IllegalArgument`           | `IllegalArgumentException`                            |
+| `IllegalState`              | `IllegalStateException`                               |
+| `jnirt::Error`              | `NativeException(domain, code, message)`, cause chain |
+| `std::bad_alloc`            | `OutOfMemoryError`                                    |
+| anything else               | `NativeException("jnirt", Internal, what())` + log    |
 
 Pending Java exceptions: after every call into Java the runtime calls `ExceptionCheck`. If one is pending, it is
 moved into a `GlobalRef`, cleared (`ExceptionClear`) and rethrown as a C++ `JavaException`. The C++ stack then unwinds

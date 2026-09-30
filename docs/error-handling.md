@@ -2,11 +2,11 @@
 
 `jnirt` has three kinds of failure. Pick by asking **who is at fault**.
 
-| Who is at fault                        | Kind              | What you write                                 |
-|----------------------------------------|-------------------|------------------------------------------------|
-| The code that calls yours              | Programmer error  | `JNIRT_REQUIRE(...)` / `JNIRT_CHECK(...)`      |
-| The outside world (network, device)    | Recoverable error | `throw jnirt::Error(Errc::X, "text")`          |
-| Your own code                          | Invariant error   | `JNIRT_ASSERT(...)` / `JNIRT_FATAL(...)`       |
+| Who is at fault                     | Kind              | What you write                            |
+|-------------------------------------|-------------------|-------------------------------------------|
+| The code that calls yours           | Programmer error  | `JNIRT_REQUIRE(...)` / `JNIRT_CHECK(...)` |
+| The outside world (network, device) | Recoverable error | `throw jnirt::Error(Errc::X, "text")`     |
+| Your own code                       | Invariant error   | `JNIRT_ASSERT(...)` / `JNIRT_FATAL(...)`  |
 
 Everything lives in `support` (no `jni.h`), so it works the same in `core` and in `bindings`.
 
@@ -50,7 +50,8 @@ throw jnirt::Error(wificameras::Errc::AuthFailed, "camera %s rejected login", ho
 - Generic codes `jnirt::Errc::{Timeout, NotFound, Io, Internal}` (domain `"jnirt"`) can be thrown from any library.
 - Test in C++ with `if (e.is(Errc::AuthFailed)) ...`.
 - To keep the cause, throw inside a `catch`: `std::throw_with_nested(jnirt::Error(...))`.
-- Add a new error: add a line to your enum with the next number. Never reuse or renumber. Nothing in the runtime changes.
+- Add a new error: add a line to your enum with the next number. Never reuse or renumber. Nothing in the runtime
+  changes.
 
 ## Invariant errors: `ASSERT` and `FATAL`
 

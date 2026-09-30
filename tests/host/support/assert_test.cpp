@@ -1,6 +1,7 @@
 // Built twice from this file: with NDEBUG (release rules) and without (debug rules).
 
 #include <jnirt/support/assert.h>
+#include <jnirt/support/error.h>
 
 #include <gtest/gtest.h>
 
