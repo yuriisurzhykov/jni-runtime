@@ -133,8 +133,8 @@ The level is process-wide and defaults to `Debug`.
 ```cpp
 #include "jnirt/support/logging/log.h"
 
-support::logging::setLevel(support::logging::Level::Info);  // e.g. in release builds
-bool on = support::logging::enabled(support::logging::Level::Debug);
+jnirt::logging::setLevel(jnirt::logging::Level::Info);  // e.g. in release builds
+bool on = jnirt::logging::enabled(jnirt::logging::Level::Debug);
 ```
 
 Call `setLevel` once during initialization. It is an atomic store and is safe to
@@ -145,13 +145,13 @@ call at any time.
 The macros are a convenience layer over one function:
 
 ```cpp
-support::logging::write(support::logging::Level::Warn, "MyTag",
+jnirt::logging::write(jnirt::logging::Level::Warn, "MyTag",
                         "retry %d of %d", attempt, max);
 ```
 
 Use it when the tag is not a compile-time constant. It skips the early
 level check on argument evaluation, so guard expensive arguments with
-`support::logging::enabled(...)`.
+`jnirt::logging::enabled(...)`.
 
 ## Reading the logs on Android
 
@@ -182,7 +182,7 @@ stream and are ordered by time, so both sides of a call can be followed together
 ## Adding another platform
 
 Only one file is platform-specific. To support a new OS, add a file that defines
-`sinkWrite()` from `src/support/logging/sink.h` and select it in CMake. The API,
+`sinkWrite()` from `support/src/logging/log_sink.h` and select it in CMake. The API,
 macros, and core do not change.
 
 ## Do and don't

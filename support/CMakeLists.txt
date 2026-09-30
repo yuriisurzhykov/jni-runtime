@@ -21,5 +21,5 @@ if (ANDROID)
     target_sources(jnirt_support PRIVATE src/android/logging/log_sink_android.cpp)
     target_link_libraries(jnirt_support PRIVATE log)   # liblog
 else ()
-    message(FATAL_ERROR "jnirt_support: no logging sink for this platform")
+    target_sources(jnirt_support PRIVATE src/host/logging/log_sink_stderr.cpp)   # host build and tests
 endif ()

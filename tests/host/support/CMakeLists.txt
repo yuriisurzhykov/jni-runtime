@@ -1,0 +1,1 @@
+jnirt_add_test(support_logging_test logging_test.cpp)
