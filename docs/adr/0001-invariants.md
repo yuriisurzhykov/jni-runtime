@@ -47,8 +47,9 @@ Draft
 ## 3. Threading
 
 - 3.1 Only `JavaVM*` is cached. `JNIEnv*` is never stored or shared between threads.
-- 3.2 `current_env()` calls `GetEnv` first. A thread already attached by someone else is left alone.
+- 3.2 `jnirt::env()` calls `GetEnv` first. A thread already attached by someone else is left alone.
 - 3.3 The runtime detaches only threads it attached itself, through a `pthread_key` destructor.
+  *Details in ADR-0003.*
 - 3.4 Callbacks are invoked **on the thread where the event occurs**, never while holding a runtime or library lock.
 - 3.5 Thread affinity is the **library's** responsibility. Kotlin APIs accept an `Executor` (or a `Handler`) at
   subscription time. The `Looper` is captured **at subscription time**, never inside the callback. Each callback

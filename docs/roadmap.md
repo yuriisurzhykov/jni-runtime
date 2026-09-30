@@ -53,7 +53,7 @@ P0 Design ─► P1 Build skeleton ─► P2 support (log ✔, error ✔, assert
 | ADR-0001 invariants with glossary (v2)                                | `[~]`                       |
 | Toolchain: C++17, NDK r27, runtime min API 26, exceptions enabled     | `[x]`                       |
 | Kotlin result type: shape and how public APIs wrap `NativeException`  | `[ ]` waiting for the class |
-| Attach policy: daemon vs regular attach, behavior when attach fails   | `[ ]`                       |
+| Attach policy: daemon vs regular attach, behavior when attach fails   | `[x]` ADR-0003              |
 | `GlobalRef` behavior at process shutdown (leak on purpose vs release) | `[ ]`                       |
 | `JNI_OnLoad` failure policy (`JNI_ERR` plus what is logged)           | `[ ]`                       |
 
@@ -86,8 +86,8 @@ checks run.
 
 Build order inside the phase matters:
 
-1. **`vm` / `env`**: cache `JavaVM*`, `current_env()` (`GetEnv` first), attach guard with `pthread_key` detach, thread
-   names, attach-failure handling.
+1. **`vm` / `env`** ([ADR-0003](adr/0003-vm-and-env.md)): cache `JavaVM*`, `env()` (`GetEnv` first), `pthread_key`
+   detach, `detachCurrentThread()`, thread names, attach failure is `FATAL`.
 2. **`ref`**: move-only `LocalRef`, `GlobalRef`, `WeakGlobalRef`; weak refs promote to strong or empty.
 3. **`signature`**: `constexpr` signatures from C++ types (host-testable without a JVM).
 4. **Minimal exception check**: pending exception after `FindClass` / `GetMethodID`: log and clear.
