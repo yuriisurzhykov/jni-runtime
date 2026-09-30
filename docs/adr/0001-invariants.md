@@ -76,6 +76,7 @@ Draft
 - 6.1 **C++ exceptions stay enabled** and are allowed inside `core`. They **never cross the JNI boundary**: `entry()`
   catches everything.
 - 6.2 **Programmer error:** `IllegalArgumentException` / `IllegalStateException`. In debug builds, log and `abort`.
+  *Superseded by ADR-0002: these are thrown in debug and release alike; only invariant errors crash.*
 - 6.3 **Recoverable error:** native throws a dedicated exception from a single hierarchy (`NativeException` with an
   error
   code). Native never constructs Kotlin result objects.
