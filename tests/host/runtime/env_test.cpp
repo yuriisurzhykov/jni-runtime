@@ -74,7 +74,11 @@ namespace {
     template<class Body>
     void onNativeThread(const char *name, Body body) {
         std::thread thread([&] {
+#ifdef __APPLE__
+            pthread_setname_np(name);                  // macOS names only the calling thread
+#else
             pthread_setname_np(pthread_self(), name);
+#endif
             body();
         });
         thread.join();

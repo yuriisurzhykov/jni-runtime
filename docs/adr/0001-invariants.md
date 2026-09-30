@@ -108,4 +108,4 @@ Draft
 ## 10. Toolchain
 
 - 10.1 C++17. NDK r27+ (LTS or newer), set explicitly via `ndkVersion`.
-- 10.2 Runtime is designed for a minimum API of 24/26, even if the project currently uses 33.
+- 10.2 Runtime minimum API is 26 (`minSdk = 26`), even if the project currently uses 33.

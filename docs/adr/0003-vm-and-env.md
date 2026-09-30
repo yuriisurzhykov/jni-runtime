@@ -63,8 +63,8 @@ GetEnv(JNI_VERSION_1_6)
 - `JNIEnv*` is not cached, not even in `thread_local`: `GetEnv` is a TLS read in ART.
 - **Regular attach** (`AttachCurrentThread`), not daemon. On Android the difference is irrelevant (the VM is never
   shut down, the process is killed). On a host JVM a daemon thread lets the VM exit under a running native thread.
-- **Thread name**: the current pthread name (read with `prctl(PR_GET_NAME)`, because `pthread_getname_np` needs
-  API 26) is passed in `JavaVMAttachArgs`, so the thread shows up as `camera-rx` in ANR traces and the profiler.
+- **Thread name**: the current pthread name (`pthread_getname_np`, available from API 26, our minimum) is passed
+  in `JavaVMAttachArgs`, so the thread shows up as `camera-rx` in ANR traces and the profiler.
   There is no separate API for the name. A new thread inherits its creator's name, so name your threads with
   `pthread_setname_np` (15 characters at most).
 - **Attach failure** is `JNIRT_FATAL`. It only happens when the VM is out of memory or dying; the caller cannot

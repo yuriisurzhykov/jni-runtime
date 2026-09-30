@@ -13,7 +13,6 @@
 #include "vm_internal.h"
 
 #include <pthread.h>
-#include <sys/prctl.h>
 
 namespace jnirt {
     namespace {
@@ -37,12 +36,14 @@ namespace jnirt {
             return gAttachedByUs;
         }
 
-        // The current thread's name as set by pthread_setname_np / prctl. pthread_getname_np needs API 26,
-        // prctl works on every Android version. Up to 15 characters plus the terminating zero.
+        // The current thread's name as set by pthread_setname_np (Android API 26+, Linux, macOS).
+        // Linux and Android keep up to 15 characters, macOS up to 63. Empty if it can not be read.
         struct ThreadName {
-            char value[16] = {};
+            char value[64] = {};
 
-            ThreadName() { prctl(PR_GET_NAME, value, 0, 0, 0); }
+            ThreadName() {
+                if (pthread_getname_np(pthread_self(), value, sizeof value) != 0) value[0] = '\0';
+            }
         };
 
         JNIEnv *getEnv(JavaVM *vm, jint *status) {
