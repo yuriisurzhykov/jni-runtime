@@ -1,4 +1,6 @@
 add_library(jnirt_support STATIC
+        src/error.cpp
+        src/format.cpp
         src/logging/logging_core.cpp
 )
 add_library(jnirt::support ALIAS jnirt_support)
