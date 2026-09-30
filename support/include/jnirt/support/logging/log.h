@@ -2,8 +2,8 @@
 //
 // Created by Yurii Surzhykov on 9/28/26.
 
-#ifndef JNI_TEST_LOG_H
-#define JNI_TEST_LOG_H
+#ifndef JNIRT_SUPPORT_LOGGING_LOG_H
+#define JNIRT_SUPPORT_LOGGING_LOG_H
 #pragma once
 #include <cstdint>
 
@@ -17,4 +17,4 @@ namespace support::logging {
     void write(Level level, const char *tag, const char *fmt, ...) noexcept
     __attribute__((format(printf, 3, 4)));
 } // namespace support::logging
-#endif //JNI_TEST_LOG_H
+#endif //JNIRT_SUPPORT_LOGGING_LOG_H

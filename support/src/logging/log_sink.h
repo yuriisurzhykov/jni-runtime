@@ -2,8 +2,8 @@
 // Created by Yurii Surzhykov on 9/28/26.
 //
 
-#ifndef JNI_RUNTIME_SINK_H
-#define JNI_RUNTIME_SINK_H
+#ifndef JNI_RUNTIME_LOGSINK_H
+#define JNI_RUNTIME_LOGSINK_H
 
 #pragma once
 
@@ -13,4 +13,4 @@ namespace support::logging {
     void sinkWrite(Level level, const char *tag, const char *message) noexcept;
 }
 
-#endif //JNI_RUNTIME_SINK_H
+#endif //JNI_RUNTIME_LOGSINK_H

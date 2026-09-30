@@ -2,7 +2,7 @@
 //
 // Created by Yurii Surzhykov on 9/28/26.
 
-#ifndef JNI_TEST_ERROR_H
-#define JNI_TEST_ERROR_H
+#ifndef JNIRT_SUPPORT_ERROR_H
+#define JNIRT_SUPPORT_ERROR_H
 
-#endif //JNI_TEST_ERROR_H
+#endif //JNIRT_SUPPORT_ERROR_H

@@ -2,7 +2,7 @@
 //
 // Created by Yurii Surzhykov on 9/28/26.
 
-#include "support/logging/log_sink.h"
+#include <logging/log_sink.h>
 #include <android/log.h>
 
 namespace support::logging {

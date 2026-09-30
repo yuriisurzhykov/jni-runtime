@@ -2,8 +2,8 @@
 // Created by Yurii Surzhykov on 9/28/26.
 //
 
-#ifndef JNI_RUNTIME_MARCOS_H
-#define JNI_RUNTIME_MARCOS_H
+#ifndef JNIRT_SUPPORT_LOGGING_MACROS_H
+#define JNIRT_SUPPORT_LOGGING_MACROS_H
 
 #pragma once
 #include "jnirt/support/logging/log.h"
@@ -26,4 +26,4 @@
 #define LOGW(...) SUPPORT_LOG_IMPL(::support::logging::Level::Warn,    __VA_ARGS__)
 #define LOGE(...) SUPPORT_LOG_IMPL(::support::logging::Level::Error,   __VA_ARGS__)
 
-#endif //JNI_RUNTIME_MARCOS_H
+#endif //JNIRT_SUPPORT_LOGGING_MACROS_H

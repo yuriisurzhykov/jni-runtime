@@ -3,7 +3,7 @@
 // Created by Yurii Surzhykov on 9/28/26.
 
 #include <jnirt/support/logging/log.h>
-#include "support/logging/log_sink.h"
+#include "log_sink.h"
 
 #include <atomic>
 #include <cstdarg>
