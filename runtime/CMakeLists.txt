@@ -1,21 +1,22 @@
-# Header-only for now (no sources yet). Becomes STATIC when the first .cpp appears.
-add_library(jnirt_runtime INTERFACE)
+add_library(jnirt_runtime STATIC
+        src/env.cpp
+        src/vm.cpp
+)
 add_library(jnirt::runtime ALIAS jnirt_runtime)
 
-target_include_directories(jnirt_runtime INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/include)
-target_link_libraries(jnirt_runtime INTERFACE jnirt::support)   # runtime -> support, never back
+target_include_directories(jnirt_runtime
+        PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include
+        PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src
+)
+target_link_libraries(jnirt_runtime
+        PUBLIC jnirt::support          # runtime -> support, never back
+        PRIVATE jnirt::options
+)
 
-# When src/*.cpp arrives, replace the block above with:
-#
-#add_library(jnirt_runtime STATIC
-#        src/vm.cpp ...
-#)
-#add_library(jnirt::runtime ALIAS jnirt_runtime)
-#
-#target_include_directories(jnirt_runtime
-#        PUBLIC  ${CMAKE_CURRENT_SOURCE_DIR}/include
-#        PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src
-#)
-#target_link_libraries(jnirt_runtime PUBLIC jnirt::support PRIVATE jnirt::options)
-#
-#target_compile_options(jnirt_runtime PRIVATE -Wall -Wextra -Wformat -Werror=format-security)
+# jni.h: the NDK sysroot has it on Android. On the host it comes from the JDK (needed for host tests).
+if (NOT ANDROID)
+    find_package(JNI REQUIRED)
+    target_include_directories(jnirt_runtime PUBLIC ${JNI_INCLUDE_DIRS})
+    find_package(Threads REQUIRED)
+    target_link_libraries(jnirt_runtime PRIVATE Threads::Threads)
+endif ()

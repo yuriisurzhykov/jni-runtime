@@ -49,6 +49,7 @@ available: native threads, `GlobalRef` destructors, callbacks.
 - `setVm` with the same `vm` again is allowed (several `.so` in one process, see §7). A different `vm` is
   `JNIRT_FATAL`.
 - `vm()` before `setVm()` is `JNIRT_FATAL`: it is an integration bug (`jnirt::init` missing in `JNI_OnLoad`).
+- `setVm(nullptr)` is `JNIRT_FATAL`.
 
 ### 3. `env()`
 
@@ -62,8 +63,10 @@ GetEnv(JNI_VERSION_1_6)
 - `JNIEnv*` is not cached, not even in `thread_local`: `GetEnv` is a TLS read in ART.
 - **Regular attach** (`AttachCurrentThread`), not daemon. On Android the difference is irrelevant (the VM is never
   shut down, the process is killed). On a host JVM a daemon thread lets the VM exit under a running native thread.
-- **Thread name**: taken from `pthread_getname_np` and passed in `JavaVMAttachArgs`, so the thread shows up as
-  `camera-rx` in ANR traces and the profiler rather than `Thread-12`. There is no separate API for the name.
+- **Thread name**: the current pthread name (read with `prctl(PR_GET_NAME)`, because `pthread_getname_np` needs
+  API 26) is passed in `JavaVMAttachArgs`, so the thread shows up as `camera-rx` in ANR traces and the profiler.
+  There is no separate API for the name. A new thread inherits its creator's name, so name your threads with
+  `pthread_setname_np` (15 characters at most).
 - **Attach failure** is `JNIRT_FATAL`. It only happens when the VM is out of memory or dying; the caller cannot
   react.
 
