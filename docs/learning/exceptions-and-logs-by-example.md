@@ -189,7 +189,7 @@ NativeLogBridge.receiver = NativeLogBridge.Receiver { priority, tag, message ->
 
 ```
 // output:
-[receiver] 4/camera: camera opened: rtsp://front
+[android.util.Log] 4/camera: camera opened: rtsp://front    (the receiver here was Log.println(priority, tag, message))
 ```
 
 - Native **always** calls Kotlin and Kotlin decides, so there is no flag in C++ to keep in step with the receiver. A line
