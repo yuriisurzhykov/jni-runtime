@@ -16,3 +16,4 @@ function(jnirt_add_test name)
 endfunction()
 
 add_subdirectory(support)
+add_subdirectory(runtime)
