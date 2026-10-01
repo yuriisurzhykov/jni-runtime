@@ -1,5 +1,6 @@
 add_library(jnirt_runtime STATIC
         src/env.cpp
+        src/ref.cpp
         src/vm.cpp
 )
 add_library(jnirt::runtime ALIAS jnirt_runtime)

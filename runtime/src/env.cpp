@@ -7,15 +7,19 @@
 // Created by Yurii Surzhykov on 9/30/26.
 
 #include <jnirt/runtime/env.h>
+#include <jnirt/runtime/ref.h>
 #include <jnirt/runtime/vm.h>
 #include <jnirt/support/assert.h>
 
+#include "ref_internal.h"
+#include "thread_name.h"
 #include "vm_internal.h"
 
 #include <pthread.h>
-#include <sys/prctl.h>
 
 namespace jnirt {
+    using detail::ThreadName;
+
     namespace {
         pthread_key_t gAttachedByUs;
         pthread_once_t gKeyOnce = PTHREAD_ONCE_INIT;
@@ -36,14 +40,6 @@ namespace jnirt {
             pthread_once(&gKeyOnce, createKey);
             return gAttachedByUs;
         }
-
-        // The current thread's name as set by pthread_setname_np / prctl. pthread_getname_np needs API 26,
-        // prctl works on every Android version. Up to 15 characters plus the terminating zero.
-        struct ThreadName {
-            char value[16] = {};
-
-            ThreadName() { prctl(PR_GET_NAME, value, 0, 0, 0); }
-        };
 
         JNIEnv *getEnv(JavaVM *vm, jint *status) {
             JNIEnv *env = nullptr;
@@ -97,6 +93,15 @@ namespace jnirt {
     void detachCurrentThread() {
         auto *attachedVm = static_cast<JavaVM *>(pthread_getspecific(attachedByUsKey()));
         if (attachedVm != nullptr) {
+#ifndef NDEBUG
+            if (int alive = detail::liveLocalRefsOnThisThread(); alive > 0) {
+                JNIRT_FATAL("detachCurrentThread() called with %d LocalRef still alive on thread \"%s\".\n"
+                            "  why: local references become invalid after detach; their destructors would use a "
+                            "dead JNIEnv.\n"
+                            "  fix: let LocalRef go out of scope before detaching (close the block first).",
+                            alive, ThreadName().value);
+            }
+#endif
             // Clear first, so the key destructor does not detach a second time at thread exit.
             pthread_setspecific(attachedByUsKey(), nullptr);
             attachedVm->DetachCurrentThread();

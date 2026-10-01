@@ -107,7 +107,7 @@ This is only the text passed to `JNIRT_FATAL` / `JNIRT_CHECK`; there is no new m
 | `vm()` / `env()` before `jnirt::init`           | runtime, `FATAL`                              | always               |
 | `setVm` with a different `vm`                   | runtime, `FATAL`                              | always               |
 | `detachCurrentThread()` on a foreign thread     | runtime, `CHECK`                              | always               |
-| detach with live `LocalRef`                     | runtime, per-thread `LocalRef` counter (P3.2) | debug                |
+| detach with live `LocalRef`                     | runtime, per-thread `LocalRef` counter (ADR-0004) | debug            |
 | class lookup on a thread jnirt attached         | `jnirt::findClass` (P3.5)                     | debug                |
 | raw `FindClass` / `GetMethodID` in library code | CI check                                      | CI                   |
 | `JNIEnv*` used on another thread                | CheckJNI (`-Xcheck:jni`, `debug.checkjni`)    | tests, debug devices |
