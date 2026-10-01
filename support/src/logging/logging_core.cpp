@@ -14,10 +14,15 @@ namespace jnirt::logging {
     namespace {
         constexpr size_t kBufferSize = 1024;
         std::atomic<Level> gLevel{Level::Debug};
+        std::atomic<Forwarder> gForwarder{nullptr};
     }
 
     void setLevel(Level level) noexcept {
         gLevel.store(level, std::memory_order_relaxed);
+    }
+
+    void setForwarder(Forwarder forwarder) noexcept {
+        gForwarder.store(forwarder, std::memory_order_release);
     }
 
     bool enabled(Level level) noexcept {
@@ -34,9 +39,9 @@ namespace jnirt::logging {
         int n = vsnprintf(buf, sizeof buf, fmt, args);
         va_end(args);
 
-        if (n < 0) {
-            sinkWrite(level, tag, "<log format error>");
-            return;
+        if (n < 0) std::snprintf(buf, sizeof buf, "<log format error>");
+        if (Forwarder forwarder = gForwarder.load(std::memory_order_acquire)) {
+            if (forwarder(level, tag, buf)) return;
         }
         sinkWrite(level, tag, buf);
     }

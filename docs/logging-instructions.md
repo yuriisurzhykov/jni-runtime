@@ -99,8 +99,8 @@ LOGI("%s", userText);  // right
 - A message is formatted into a fixed stack buffer, so it is safe to log from
   constrained contexts, but keep it in mind for threads with small stacks.
 - Logging is thread-safe. Calls are `noexcept`.
-- Logs from C++ go to logcat only. They do not pass through Timber or its
-  `FileTree` on the Kotlin side.
+- Logs from C++ go to logcat, or, once `jnirt::init()` has run, through the Kotlin
+  `NativeLogBridge` (see "Logs in Timber" below).
 
 ## Adding the dependency
 
@@ -178,6 +178,23 @@ adb logcat -c && adb logcat --pid=$(adb shell pidof -s com.example.app)
 In Android Studio, open the Logcat tool window and filter by `tag:WifiCamera`
 or `package:mine`. Kotlin logs (Timber) and C++ logs appear in the same
 stream and are ordered by time, so both sides of a call can be followed together.
+
+## Logs in Timber
+
+After a successful `jnirt::init()` every line goes to Kotlin first:
+
+```kotlin
+NativeLogBridge.receiver = NativeLogBridge.Receiver { priority, tag, message ->
+    Timber.tag(tag).log(priority, message)       // so the FileTree sees native lines too
+}
+NativeLogBridge.setNativeLevel(Log.INFO)         // one level for C++ and Kotlin; Log.VERBOSE..Log.ASSERT
+```
+
+Without a receiver the line is written to `android.util.Log`, so logcat looks the same as before. A line goes to exactly
+one place. These lines are not forwarded and go straight to logcat: from a thread that the JVM does not know (a log line
+never attaches a thread; call `jnirt::env()` on it once if its logs matter), while a Java exception is pending, a line
+logged while another is being forwarded, a line whose receiver threw, and `JNIRT_ASSERT` / `JNIRT_FATAL`. Design:
+[ADR-0007](adr/0007-exceptions-entry-and-log-sink.md) §7.
 
 ## Adding another platform
 

@@ -68,7 +68,23 @@ own code, never for input or environment problems.
 - A message is mandatory, and its arguments are evaluated only on failure.
 - Do not catch `IllegalArgument` / `IllegalState`: they are bugs to fix, not situations to handle.
 - Report an error once: either throw, or log and handle. `entry()` logs what it catches.
-- Do not put `JNIRT_ERROR_DOMAIN` for the same enum in two places, and keep domain names unique across libraries.
+- Do not put `JNIRT_ERROR_DOMAIN` for the same enum in two places, and keep domain names unique across libraries:
+  `init()` fails with `JNI_ERR` on two enums with one name, on an empty name, and on `"jnirt"` for anything but
+  `jnirt::Errc`.
 
-The Kotlin side (`NativeException`, mapping to a library's own error enum) is described in
-[ADR-0002](adr/0002-errors-and-asserts.md).
+## What Kotlin sees
+
+`entry()` is part of `native<&fn>`, so every registered native function already has it.
+
+| You throw                                | Kotlin gets                                                       |
+|------------------------------------------|-------------------------------------------------------------------|
+| `JNIRT_REQUIRE` / `JNIRT_CHECK`          | `IllegalArgumentException` / `IllegalStateException`, `"text (file.cpp:42)"` |
+| `jnirt::Error(Errc::X, "text")`          | `NativeException(domain, code, "text")`                            |
+| an exception of Java passing through     | the same Java object                                               |
+| `std::bad_alloc`                         | `OutOfMemoryError`                                                 |
+| any other C++ exception                  | `NativeException("jnirt", Internal, "<type>: what()")`             |
+
+A cause chain made with `std::throw_with_nested` becomes `Throwable.cause` (at most 8). In Kotlin a library maps
+`NativeException` once into its own `enum class` with `nativeCall(Domain) { ... }`, which returns an `Outcome`. See
+[ADR-0007](adr/0007-exceptions-entry-and-log-sink.md) and
+[learning/exceptions-and-logs-by-example.md](learning/exceptions-and-logs-by-example.md).

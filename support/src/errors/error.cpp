@@ -8,6 +8,7 @@
 #include "format.h"
 
 #include <cstring>
+#include <mutex>
 
 namespace jnirt {
     Error::~Error() = default;
@@ -38,4 +39,40 @@ namespace jnirt {
     IllegalArgument::~IllegalArgument() = default;
 
     IllegalState::~IllegalState() = default;
+
+    namespace detail {
+        namespace {
+            // Function-local statics: a JNIRT_ERROR_DOMAIN in any file can run before this file's own statics would.
+            std::mutex &domainsLock() {
+                static std::mutex lock;
+                return lock;
+            }
+
+            std::vector<DomainDeclaration> &domains() {
+                static std::vector<DomainDeclaration> list;
+                return list;
+            }
+        } // namespace
+
+        bool declareDomain(const char *domain, const char *enumName) noexcept {
+            try {
+                std::lock_guard<std::mutex> guard(domainsLock());
+                std::vector<DomainDeclaration> &list = domains();
+                for (const DomainDeclaration &known: list) {
+                    if (std::strcmp(known.domain, domain) == 0 && std::strcmp(known.enumName, enumName) == 0) {
+                        return true; // the same declaration seen again
+                    }
+                }
+                list.push_back(DomainDeclaration{domain, enumName});
+            } catch (...) {
+                // Out of memory while loading: the declaration is lost, the check can only miss a clash.
+            }
+            return true;
+        }
+
+        std::vector<DomainDeclaration> declaredDomains() {
+            std::lock_guard<std::mutex> guard(domainsLock());
+            return domains();
+        }
+    } // namespace detail
 }

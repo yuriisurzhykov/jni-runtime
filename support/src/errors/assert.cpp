@@ -4,6 +4,7 @@
 
 #include <jnirt/support/assert.h>
 #include <jnirt/support/logging/log.h>
+#include <logging/log_sink.h>
 
 #include "abort_hook.h"
 #include "format.h"
@@ -53,7 +54,9 @@ namespace jnirt::detail {
 
         if (!failing) {
             failing = true;
-            logging::write(logging::Level::Error, "jnirt", "%s", message);
+            // Straight to the platform sink: the forwarder may call Java, and after a broken invariant nothing
+            // outside this function can be trusted.
+            logging::sinkWrite(logging::Level::Error, "jnirt", message);
             setAbortMessage(message);
         }
         std::abort();

@@ -14,7 +14,7 @@ P0 Design ─► P1 Build skeleton ─► P2 support (log ✔, error ✔, assert
                           (vm/env, refs, signatures, cache, registry)
                                         │
                                         ▼
-                           P4 Exceptions + entry() + Java log sink
+                           P4 Exceptions + entry() + Java log sink ✔
                                         │
                         ┌───────────────┴───────────────┐
                         ▼                               ▼
@@ -52,7 +52,7 @@ P0 Design ─► P1 Build skeleton ─► P2 support (log ✔, error ✔, assert
 | Architecture overview (repos, layers, rules)                          | `[x]`                       |
 | ADR-0001 invariants with glossary (v2)                                | `[~]`                       |
 | Toolchain: C++17, NDK r27, runtime min API 26, exceptions enabled     | `[x]`                       |
-| Kotlin result type: shape and how public APIs wrap `NativeException`  | `[ ]` waiting for the class |
+| Kotlin result type: shape and how public APIs wrap `NativeException`  | `[x]` ADR-0007 §5 (`Outcome`, `nativeCall`) |
 | Attach policy: daemon vs regular attach, behavior when attach fails   | `[x]` ADR-0003              |
 | `GlobalRef` behavior at process shutdown (leak on purpose vs release) | `[x]` ADR-0004              |
 | `JNI_OnLoad` failure policy (`JNI_ERR` plus what is logged)           | `[x]` ADR-0006              |
@@ -112,20 +112,29 @@ Build order inside the phase matters:
 
 ## P4. Exceptions, `entry()`, Java log sink
 
-- `exception`: C++ error to Java exception mapping, `NativeException` hierarchy with error code, `cause` chain
-  preserved.
-- `entry()`: single wrapper for every native entry point, catches everything, maps to Java exceptions.
-- Pending-exception discipline (check, clear, or return).
-- Programmer-error path: `IllegalArgumentException` / `IllegalStateException`; debug builds log and abort.
-- `JavaForwardSink` plus Kotlin `NativeLogBridge` (receiver set to Timber by the app), `setNativeLevel` from Kotlin;
-  logcat fallback; skip Java when an exception is pending or the sink is recursing; UTF-8 to UTF-16 conversion for
-  messages.
+Design: [ADR-0007](adr/0007-exceptions-entry-and-log-sink.md); explained with examples in
+[learning/exceptions-and-logs-by-example.md](learning/exceptions-and-logs-by-example.md).
+
+| Item                                                                                                                       | Status |
+|----------------------------------------------------------------------------------------------------------------------------|--------|
+| `entry()` inside `native<&fn>`: every native is wrapped, catches everything, maps to Java exceptions                        | `[x]`  |
+| Mapping table: `JavaException` (same object), `IllegalArgument` / `IllegalState` (with `file:line`), `Error` → `NativeException`, `bad_alloc`, other `std::exception` | `[x]`  |
+| `cause` chain through `std::throw_with_nested` (at most 8)                                                                  | `[x]`  |
+| Pending-exception discipline (pending wins, never throws out of the wrapper)                                                | `[x]`  |
+| UTF-8 to UTF-16 for messages (`NewString`, invalid bytes become `U+FFFD`)                                                   | `[x]`  |
+| Kotlin: one class `NativeException(domain, code)`, `ErrorKind`, `LibraryError`, `ErrorDomain`, `asError`, `Outcome` / `nativeCall`, `JnirtError` | `[x]`  |
+| Error domains registered by `JNIRT_ERROR_DOMAIN` and checked by `init()` (clash, `"jnirt"`, empty)                          | `[x]`  |
+| Java log sink: `logging::setForwarder`, `forwardLogToJava`, Kotlin `NativeLogBridge` (receiver set to Timber by the app, `android.util.Log` fallback), `setNativeLevel` | `[x]`  |
+| Forwarder declines: unattached thread, pending exception, recursion, throwing receiver; `FATAL` never forwards               | `[x]`  |
+| One `.so` and one `JNI_OnLoad` per process is now required (see ADR-0007 §8)                                                | `[x]`  |
 
 **Exit criteria:** every native entry goes through `entry()`; a thrown C++ exception never reaches the JVM as a crash;
-Java sink produces no duplicates in logcat.
+Java sink produces no duplicates in logcat. Met on host (144 tests, `-Xcheck:jni`, ASan/UBSan); the Android build and
+a device run are for the reference project.
 
 > **Walking skeleton (end of P4, M1):** one trivial feature end to end (Kotlin class → native call → value or typed
-> exception → log in Timber). It is the first real test of the design, so do it here and not at P9.
+> exception → log in Timber). It is the first real test of the design, so do it here and not at P9. The example is
+> `examples/p4_demo` (camera library: `nativeCall` returns an `Outcome`, native logs arrive in the receiver).
 
 ## P5. Type conversion
 

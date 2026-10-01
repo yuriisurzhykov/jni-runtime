@@ -2,7 +2,8 @@
 
 ## Status
 
-Proposed. The C++ side (`support`) is implemented; the Kotlin side and `entry()` come with P4.
+Proposed. The C++ side (`support`) is implemented; the Kotlin side and `entry()` are implemented in P4 and described in
+[ADR-0007](0007-exceptions-entry-and-log-sink.md), which also fixes the names `JnirtError` and `Outcome` used below.
 
 ## Context
 
@@ -56,12 +57,12 @@ throw jnirt::Error(wificameras::Errc::AuthFailed, "camera %s rejected login", ho
 - The domain is bound to the enum, so the code and the domain cannot be mixed up (compile-time check).
 - Generic codes (`Timeout`, `NotFound`, `Io`, `Internal`) live in domain `"jnirt"`.
 - Code numbers are stable forever: Kotlin depends on them. A removed code keeps its number.
-- Domain names are unique across libraries (to be checked at startup by the registry, P4).
+- Domain names are unique across libraries: `init` checks it at startup (ADR-0007 §6).
 - Cause chains use the standard `std::throw_with_nested`; `entry()` maps them to Java `cause`.
 - No `Result<T>` in C++: exceptions are already allowed (ADR-0001 §6.1), and a second way to report the same error
   would only add a choice. It can be added later if a hot path needs it.
 
-### 4. Kotlin side (P4)
+### 4. Kotlin side
 
 ```kotlin
 class NativeException(val domain: String, val code: Int, message: String?, cause: Throwable? = null)
@@ -76,13 +77,13 @@ fun <E> NativeException.asError(d: ErrorDomain<E>): E?        // null if the err
 ```
 
 - The application never sees `NativeException`. Each library's **public API** maps native errors once, into its own
-  `enum class` (with an `Unknown` entry and an `ErrorKind` per value) and returns `Result<T, LibraryError>`.
+  `enum class` (with an `Unknown` entry and an `ErrorKind` per value) and returns `Outcome<T, LibraryError>`.
   Generic errors (e.g. `Timeout`) are folded into the library's enum.
 - Applications branch on `error.kind` by default, and on the specific code only when they need a special reaction.
 - Programmer errors stay plain exceptions and are not caught.
 - Keep enums small: a code exists only if a caller reacts to it differently.
 
-### 5. What `entry()` does (P4, contract fixed here)
+### 5. What `entry()` does
 
 | Caught                      | Java                                                  |
 |-----------------------------|-------------------------------------------------------|
@@ -111,11 +112,11 @@ tag `jnirt`, store it with `android_set_abort_message` (it appears as `Abort mes
 
 - `core` gets errors and asserts without `jni.h`, testable on a host (35 tests, clang and gcc, ASan/UBSan clean).
 - `support` builds off-device (stderr sink), and `jnirt::options` enables exceptions and RTTI explicitly.
-- P4 has a fixed contract for `entry()`, pending exceptions and the Kotlin API.
+- `entry()`, pending exceptions and the Kotlin API have a fixed contract (implemented in ADR-0007).
 
 ## Open
 
 - Verify on a device: `android_set_abort_message` at the project's minSdk, and the tombstone text for an uncaught
   `IllegalArgument` (libc++abi prints the exception type and `what()`).
-- Shape of the Kotlin `Result` type (roadmap P0).
+- Shape of the Kotlin result type: `Outcome` (ADR-0007 §5), to be tested by the first real library (P9).
 - `-Werror` in `jnirt::options` (not enabled yet).
