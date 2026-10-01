@@ -487,7 +487,8 @@ millisecond each way, which is why `withCritical` or a `DirectBuffer` is for fra
 hundred-thousand-element map is already 0.1 s. The rule is still coarse-grained calls: one call that carries a
 `List<Frame>` is cheaper than a thousand calls that carry one `Frame` each, and a big table goes as two arrays.
 
-Your own `Frame` costs one call per field. The same cases on Edge II hardware are the optional `examples/p5_bench`.
+Your own `Frame` costs one call per field. The same cases on a real device, and every example of this guide as a running app, are in the `p5_demo` Android module
+(buttons `Run examples` and `Run benchmark`); it is kept with the project's examples, not in this repository.
 
 ## 15. What does not compile
 

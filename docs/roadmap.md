@@ -153,7 +153,7 @@ by `native<&fn>`, `Method`, `Field` and `Constructor`. Four steps:
 
 - Kotlin specifics: value/inline class mangling, `@JvmStatic` and companion shape are rules plus a startup hint; `suspend`
   / `Flow` stay out of the border and become callbacks in P7.
-- Rule: coarse-grained calls; the host numbers are in the learning guide (§14); the same cases on Edge II hardware are an optional `examples/p5_bench`.
+- Rule: coarse-grained calls; the host numbers are in the learning guide (§14); the same cases on a real device are the `Run benchmark` button of the `p5_demo` example module (kept with the project's examples).
 
 **Exit criteria:** round-trip tests for each type; local ref count stays bounded in loops.
 
