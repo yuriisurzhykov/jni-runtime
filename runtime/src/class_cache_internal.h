@@ -9,6 +9,8 @@
 #pragma once
 #include <jnirt/runtime/class_cache.h>
 #include <jnirt/runtime/registry.h>
+#include <jnirt/support/error.h>
+#include <jnirt/support/logging/log.h>
 
 #include <string>
 #include <vector>
@@ -34,13 +36,28 @@ namespace jnirt::detail {
     // Step 3: RegisterNatives for every native of every added class that was found.
     void registerNatives(JNIEnv *env, const std::vector<ClassEntry> &classes, Problems &problems);
 
-    // The ClassInfo of jnirt's own classes; defined next to their descriptions (exception.cpp, selfcheck.cpp).
+    // The ClassInfo of jnirt's own classes whose description is not in runtime_classes.h (exception.cpp,
+    // selfcheck.cpp).
     ClassInfo &throwableClassInfo();
     ClassInfo &nativeLoaderClassInfo();
 
     // jnirt's own classes (Throwable, jnirt.NativeLoader): found before the user's classes, never added to a
     // Registry.
     std::vector<ClassInfo *> runtimeClasses();
+
+    // Step 0, from the declarations of JNIRT_ERROR_DOMAIN: no two enums share a domain name.
+    void checkDomains(const std::vector<DomainDeclaration> &declared, Problems &problems);
+
+    // Sends one log line to NativeLogBridge.log. True: Kotlin has it. False: it was not sent (an unattached thread,
+    // a pending exception, a line written while one is being forwarded, a receiver that threw) and logcat gets it.
+    // This is what init() installs as the forwarder of support/logging.
+    bool forwardLogToJava(logging::Level level, const char *tag, const char *message) noexcept;
+
+    // The natives that jnirt registers by itself (NativeLogBridge.setNativeLevel), for startup().
+    std::vector<ClassEntry> runtimeNatives();
+
+    // Like jnirt::env(), but nullptr instead of an attach when the thread is not known to the JVM.
+    JNIEnv *currentEnvOrNull() noexcept;
 
     // Kotlin and native versions of jni-runtime are the same.
     void checkVersion(JNIEnv *env, Problems &problems);

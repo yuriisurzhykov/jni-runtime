@@ -10,6 +10,7 @@
 
 #include "class_cache_internal.h"
 #include "registry_internal.h"
+#include "runtime_classes.h"
 
 #include <algorithm>
 #include <atomic>
@@ -20,7 +21,11 @@ LOG_DEFINE_TAG("jnirt")
 namespace jnirt {
     namespace detail {
         std::vector<ClassInfo *> runtimeClasses() {
-            return {&throwableClassInfo(), &nativeLoaderClassInfo()};
+            return {
+                &throwableClassInfo(), &nativeLoaderClassInfo(), &classInfo<NativeExceptionJ>(),
+                &classInfo<IllegalArgumentExceptionJ>(), &classInfo<IllegalStateExceptionJ>(),
+                &classInfo<OutOfMemoryErrorJ>(), &classInfo<NativeLogBridgeJ>(),
+            };
         }
 
         Problems startup(JNIEnv *env, Registry &registry, const std::vector<ClassInfo *> &described) {
@@ -37,6 +42,8 @@ namespace jnirt {
                 problems.insert(problems.end(), foundational.begin(), foundational.end());
                 return problems;
             }
+
+            registerNatives(env, runtimeNatives(), problems);
 
             std::vector<ClassInfo *> user;
             for (ClassInfo *info: described) {
@@ -68,12 +75,15 @@ namespace jnirt {
             Registry registry;
             for (auto registerFunction: registerFunctions) registerFunction(registry);
             problems = detail::startup(env(), registry, detail::describedClasses());
+            detail::checkDomains(detail::declaredDomains(), problems);
             classCount = detail::RegistryAccess::classes(registry).size();
         } catch (const std::exception &e) {
             problems.push_back(std::string("an exception during startup: ") + e.what());
         }
 
         if (problems.empty()) {
+            // From here on native log lines go to NativeLogBridge, this one included.
+            logging::setForwarder(&detail::forwardLogToJava);
             LOGI("startup done: %zu classes", classCount);
             return JNI_VERSION_1_6;
         }
