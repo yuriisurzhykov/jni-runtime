@@ -55,7 +55,7 @@ P0 Design ─► P1 Build skeleton ─► P2 support (log ✔, error ✔, assert
 | Kotlin result type: shape and how public APIs wrap `NativeException`  | `[ ]` waiting for the class |
 | Attach policy: daemon vs regular attach, behavior when attach fails   | `[x]` ADR-0003              |
 | `GlobalRef` behavior at process shutdown (leak on purpose vs release) | `[x]` ADR-0004              |
-| `JNI_OnLoad` failure policy (`JNI_ERR` plus what is logged)           | `[ ]`                       |
+| `JNI_OnLoad` failure policy (`JNI_ERR` plus what is logged)           | `[x]` ADR-0006              |
 
 **Exit criteria:** ADR-0001 moves from Draft to Accepted, open questions closed.
 
@@ -92,9 +92,13 @@ Build order inside the phase matters:
    promote to a `LocalRef` or empty; debug checks for detach with live `LocalRef` and cross-thread `LocalRef`.
 3. `[x]` **`signature`** ([ADR-0005](adr/0005-signatures.md)): `descriptor<T>` / `signature<F>` built at compile time from
    JNI types and `JavaClass` descriptions; `jobject` and `bool` do not compile.
-4. **Minimal exception check**: pending exception after `FindClass` / `GetMethodID`: log and clear.
-5. **`class_cache`**: declarative class/method/field descriptions, resolved in `JNI_OnLoad`, stored as global refs.
-6. **`registry` + `init()` + selfcheck**: `register_xxx(Registry&)`, `RegisterNatives`, native/Kotlin version match.
+4. `[x]` **Minimal exception check** ([ADR-0006](adr/0006-class-cache-and-registry.md)): a pending exception after
+   `FindClass` / `GetMethodID` is described and cleared; calls into Java clear it and throw `JavaException`.
+5. `[x]` **`class_cache`** (ADR-0006): `JavaClass`, `Field`, `StaticField`, `Method`, `StaticMethod`, `Constructor`
+   described in C++, found in `JNI_OnLoad`, class stored as a global reference that is never deleted. Members add
+   themselves to their class.
+6. `[x]` **`registry` + `init()` + selfcheck** (ADR-0006): `register_xxx(Registry&)`, `native<&fn>`, `RegisterNatives`,
+   every problem collected and logged, Kotlin/native version match, `external fun` that nobody registered.
    Kotlin: `NativeLoader`.
 
 **Testing:** host gtest fixture that starts a real JVM (`JNI_CreateJavaVM`, `-Xcheck:jni`).

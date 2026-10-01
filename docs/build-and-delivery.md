@@ -89,10 +89,7 @@ target_link_libraries(unified_native PRIVATE
 ```cpp
 // unified/native/entry/jni_onload.cpp
 JNIEXPORT jint JNI_OnLoad(JavaVM* vm, void*) {
-    return jnirt::init(vm, [](jnirt::Registry& r) {
-        register_wificameras(r);
-        register_nextlib(r);
-    });
+    return jnirt::init(vm, {register_wificameras, register_nextlib});
 }
 ```
 
