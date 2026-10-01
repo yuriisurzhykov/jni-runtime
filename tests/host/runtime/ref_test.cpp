@@ -8,6 +8,8 @@
 #include <jnirt/runtime/ref.h>
 #include <jnirt/runtime/vm.h>
 
+#include "ref_internal.h"
+
 #include <gtest/gtest.h>
 
 #include <pthread.h>

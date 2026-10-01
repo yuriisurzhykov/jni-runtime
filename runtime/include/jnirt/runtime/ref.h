@@ -24,7 +24,6 @@
 #pragma once
 #include <jni.h>
 
-#include <cstddef>
 #include <type_traits>
 #include <utility>
 
@@ -41,11 +40,6 @@ namespace jnirt {
         void deleteGlobalRef(jobject ref) noexcept;
         jweak newWeakGlobalRef(jobject ref);
         void deleteWeakGlobalRef(jweak ref) noexcept;
-
-        // Live references, for tests and for detachCurrentThread(). Always 0 in release builds.
-        int liveLocalRefsOnThisThread() noexcept;
-        std::size_t liveGlobalRefs() noexcept;
-        std::size_t liveWeakGlobalRefs() noexcept;
 
         template<class T>
         constexpr bool isReferenceType = std::is_convertible_v<T, jobject>;
