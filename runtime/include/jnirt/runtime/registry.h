@@ -41,6 +41,12 @@
 #include <type_traits>
 #include <vector>
 
+// Here is the definition of the template argument names:
+// - Every Fn in this file means - function.
+// - Every R means Return type.
+// - Every E means Entry.
+// - Every P means arguments.
+// - Every C means Class.
 namespace jnirt {
     class Registry;
 
@@ -72,21 +78,21 @@ namespace jnirt {
                           "static one");
         };
 
-        template<class R, class Self, class... P>
-        struct NativeShape<R (*)(JNIEnv *, Self, P...)> {
+        template<class ReturnType, class Self, class... Args>
+        struct NativeShape<ReturnType (*)(JNIEnv *, Self, Args...)> {
             static_assert(std::is_same_v<Self, jobject> || std::is_same_v<Self, jclass>,
                           "jnirt: native<&fn>: the second parameter of fn must be exactly jobject (an instance "
                           "method) or jclass (a static method)");
 
-            using Result = R;
-            using Params = std::tuple<P...>;
-            using Signature = R(P...);   // what Java sees: no JNIEnv*, no this
+            using Result = ReturnType;
+            using Params = std::tuple<Args...>;
+            using Signature = ReturnType(Args...); // what Java sees: no JNIEnv*, no this
             static constexpr bool isStatic = std::is_same_v<Self, jclass>;
 
             // The address that goes to RegisterNatives: Fn inside the try/catch of entry.h.
-            template<auto Fn>
+            template<auto Func>
             static void *entryPoint() {
-                return reinterpret_cast<void *>(&entryCall<Fn, R, Self, P...>);
+                return reinterpret_cast<void *>(&entryCall<Func, ReturnType, Self, Args...>);
             }
         };
 
@@ -179,7 +185,8 @@ namespace jnirt {
     private:
         friend class Registry;
 
-        ClassBuilder(Registry &registry, std::size_t index) : registry_(registry), index_(index) {}
+        ClassBuilder(Registry &registry, std::size_t index) : registry_(registry), index_(index) {
+        }
 
         Registry &registry_;
         std::size_t index_;

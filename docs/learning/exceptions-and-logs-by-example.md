@@ -43,15 +43,15 @@ jboolean open(JNIEnv* env, jobject thiz, jstring url) {
 }
 ```
 
-| In C++                                              | Kotlin receives                                                      | Like in Kotlin            |
-|-----------------------------------------------------|----------------------------------------------------------------------|---------------------------|
-| `JNIRT_REQUIRE(...)` fails                          | `IllegalArgumentException("... (camera_demo.cpp:46)")`               | `require(...)`            |
-| `JNIRT_CHECK(...)` fails                            | `IllegalStateException("... (camera_demo.cpp:59)")`                  | `check(...)`              |
-| `throw jnirt::Error(Errc::AuthFailed, "...")`       | `NativeException(domain = "wificameras", code = 1, message = "...")` | a library's own exception |
-| `std::bad_alloc`                                    | `OutOfMemoryError`                                                   |                           |
+| In C++                                               | Kotlin receives                                                      | Like in Kotlin            |
+|------------------------------------------------------|----------------------------------------------------------------------|---------------------------|
+| `JNIRT_REQUIRE(...)` fails                           | `IllegalArgumentException("... (camera_demo.cpp:46)")`               | `require(...)`            |
+| `JNIRT_CHECK(...)` fails                             | `IllegalStateException("... (camera_demo.cpp:59)")`                  | `check(...)`              |
+| `throw jnirt::Error(Errc::AuthFailed, "...")`        | `NativeException(domain = "wificameras", code = 1, message = "...")` | a library's own exception |
+| `std::bad_alloc`                                     | `OutOfMemoryError`                                                   |                           |
 | `std::runtime_error("the SDK blew up")` or any other | `NativeException("jnirt", 4, "std::runtime_error: the SDK blew up")` | a bug in a dependency     |
-| `throw 42`                                          | `NativeException("jnirt", 4, "unknown C++ exception")`               |                           |
-| `JNIRT_ASSERT` / `JNIRT_FATAL`                      | not an exception: the process aborts and the tombstone has the text  | `error("...")` that kills |
+| `throw 42`                                           | `NativeException("jnirt", 4, "unknown C++ exception")`               |                           |
+| `JNIRT_ASSERT` / `JNIRT_FATAL`                       | not an exception: the process aborts and the tombstone has the text  | `error("...")` that kills |
 
 ```
 // output (the demo calls open("http://wrong")):
@@ -91,7 +91,8 @@ void streamThenExplode(JNIEnv* env, jobject thiz) {
 }
 ```
 
-Kotlin analogy: `throw StreamLostException("stream lost", cause = e)`. The chain arrives as `Throwable.cause`, from the top
+Kotlin analogy: `throw StreamLostException("stream lost", cause = e)`. The chain arrives as `Throwable.cause`, from the
+top
 down, with at most 8 exceptions (a longer chain is cut, which is not an error). A Java exception inside the chain
 arrives as the original object, with its own causes.
 
@@ -126,7 +127,7 @@ when (val r = api.open("rtsp://locked")) {
     is Outcome.Failure -> when (r.error.kind) {            // by default it branches on the kind, not on every code
         ErrorKind.Transient -> retryLater()
         ErrorKind.NeedsUser -> askForPassword()
-        ErrorKind.Fatal     -> reportBug()
+        ErrorKind.Fatal -> reportBug()
     }
 }
 ```
@@ -140,15 +141,17 @@ streamThenExplode() = Failure(StreamLost, kind = Transient)
 
 What `nativeCall` does with an exception from the block:
 
-| It is                                                | `nativeCall` does                              |
-|------------------------------------------------------|------------------------------------------------|
-| `NativeException` of this library's domain           | `Failure(CameraError)` through `fromCode`      |
-| `NativeException` with domain `"jnirt"`              | `Failure(...)` through `fromRuntime`           |
-| `NativeException` of another library                 | throws it again, unchanged (not yours to map)  |
-| anything else (`IllegalArgumentException`, ...)      | passes through: it is a bug, not a result      |
+| It is                                           | `nativeCall` does                             |
+|-------------------------------------------------|-----------------------------------------------|
+| `NativeException` of this library's domain      | `Failure(CameraError)` through `fromCode`     |
+| `NativeException` with domain `"jnirt"`         | `Failure(...)` through `fromRuntime`          |
+| `NativeException` of another library            | throws it again, unchanged (not yours to map) |
+| anything else (`IllegalArgumentException`, ...) | passes through: it is a bug, not a result     |
 
-There is no class hierarchy under `NativeException` on purpose: the domain and the number say which error it is, and each
-library maps them **once**, here, into its own `enum class`. Adding an error is a new line in the C++ enum and in the Kotlin
+There is no class hierarchy under `NativeException` on purpose: the domain and the number say which error it is, and
+each
+library maps them **once**, here, into its own `enum class`. Adding an error is a new line in the C++ enum and in the
+Kotlin
 enum with the next number. The numbers are forever: never reuse or renumber.
 
 ### Names
@@ -159,7 +162,8 @@ Kotlin side of the C++ `jnirt::Errc`. `Outcome` is not `Result` so that it does 
 
 ## 4. One domain name, one enum
 
-`JNIRT_ERROR_DOMAIN(wificameras::Errc, "wificameras")` is written once per enum, at global scope. Besides binding the enum
+`JNIRT_ERROR_DOMAIN(wificameras::Errc, "wificameras")` is written once per enum, at global scope. Besides binding the
+enum
 to the name it records the pair when the library is loaded (a static initialised at load, like the members of a
 `JavaClass`). `jnirt::init()` then checks the list and fails with `JNI_ERR` and a line in the log for each of:
 
@@ -167,7 +171,8 @@ to the name it records the pair when the library is loaded (a static initialised
 - the name `"jnirt"` for anything except `jnirt::Errc`;
 - an empty name.
 
-You add nothing to a register function, so there is nothing to forget. The same enum recorded twice is fine. The numbers of
+You add nothing to a register function, so there is nothing to forget. The same enum recorded twice is fine. The numbers
+of
 the Kotlin enum are not checked against C++ (that needs Kotlin reflection; a candidate for the selfcheck).
 
 ## 5. Logs from C++ in Timber
@@ -192,24 +197,28 @@ NativeLogBridge.receiver = NativeLogBridge.Receiver { priority, tag, message ->
 [android.util.Log] 4/camera: camera opened: rtsp://front    (the receiver here was Log.println(priority, tag, message))
 ```
 
-- Native **always** calls Kotlin and Kotlin decides, so there is no flag in C++ to keep in step with the receiver. A line
+- Native **always** calls Kotlin and Kotlin decides, so there is no flag in C++ to keep in step with the receiver. A
+  line
   goes to exactly one place, so there are no duplicates in logcat.
 - The priority numbers are those of `android.util.Log` (2 = verbose ... 6 = error).
-- The level is one for both sides: `NativeLogBridge.setNativeLevel(Log.WARN)` sets the level of the C++ logger, and lines
+- The level is one for both sides: `NativeLogBridge.setNativeLevel(Log.WARN)` sets the level of the C++ logger, and
+  lines
   below it are not even formatted.
 
 ### When a line does not go to Kotlin
 
 The forwarder gives up and the line goes to logcat as before, so nothing is lost, when:
 
-1. **the thread is unknown to the JVM.** A log line never attaches a thread: attaching can fail, and failing to attach is
+1. **the thread is unknown to the JVM.** A log line never attaches a thread: attaching can fail, and failing to attach
+   is
    `FATAL`, so a log line could kill the process. If the logs of a thread matter, call `jnirt::env()` on it once.
 2. **a Java exception is pending:** nothing may be called in Java while one is.
 3. **a line is written while another is being forwarded** (the receiver logs back into native, or reporting a failure
    logs): no recursion.
 4. **the receiver threw:** the exception is cleared, one warning says so, the line goes to logcat.
 
-`JNIRT_ASSERT` and `JNIRT_FATAL` never use the forwarder, they write straight to logcat: after a broken invariant nothing
+`JNIRT_ASSERT` and `JNIRT_FATAL` never use the forwarder, they write straight to logcat: after a broken invariant
+nothing
 that calls Java can be trusted, and the tombstone must come out.
 
 ## 6. One `.so`
@@ -226,11 +235,11 @@ extern "C" JNIEXPORT jint JNI_OnLoad(JavaVM* vm, void*) {
 
 ## Common mistakes
 
-| Mistake                                                         | What happens                                                                   |
-|-----------------------------------------------------------------|--------------------------------------------------------------------------------|
-| Catching `IllegalArgument` in C++ "to be safe"                  | hides a bug of the caller; let it reach Kotlin                                 |
-| `JNIRT_REQUIRE` in a destructor or a `noexcept` function        | the exception cannot leave it, the process terminates                          |
-| Throwing for a normal situation of the outside world with `REQUIRE` | Kotlin gets a bug-class exception; use `jnirt::Error` and an `enum class`  |
-| Reusing a number of the C++ enum for another meaning            | an old app maps it to the wrong `CameraError`                                   |
-| Two `.so` with jnirt in one app                                 | the Kotlin log level reaches one of them; see section 6                         |
-| Logging from a thread nobody attached and expecting Timber      | the line goes to logcat; call `jnirt::env()` on that thread first               |
+| Mistake                                                             | What happens                                                              |
+|---------------------------------------------------------------------|---------------------------------------------------------------------------|
+| Catching `IllegalArgument` in C++ "to be safe"                      | hides a bug of the caller; let it reach Kotlin                            |
+| `JNIRT_REQUIRE` in a destructor or a `noexcept` function            | the exception cannot leave it, the process terminates                     |
+| Throwing for a normal situation of the outside world with `REQUIRE` | Kotlin gets a bug-class exception; use `jnirt::Error` and an `enum class` |
+| Reusing a number of the C++ enum for another meaning                | an old app maps it to the wrong `CameraError`                             |
+| Two `.so` with jnirt in one app                                     | the Kotlin log level reaches one of them; see section 6                   |
+| Logging from a thread nobody attached and expecting Timber          | the line goes to logcat; call `jnirt::env()` on that thread first         |

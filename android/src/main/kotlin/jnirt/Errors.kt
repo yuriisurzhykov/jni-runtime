@@ -5,13 +5,19 @@ package jnirt
  * the exact code only when it wants a special reaction.
  */
 enum class ErrorKind {
-    /** Trying again later can help: network, timeout. */
+    /**
+     * Trying again later can help: network, timeout.
+     * */
     Transient,
 
-    /** A person has to do something: a password, a permission, free space. */
+    /**
+     * A person has to do something: a password, a permission, free space.
+     * */
     NeedsUser,
 
-    /** Trying again will not help. */
+    /**
+     * Trying again will not help.
+     * */
     Fatal,
 }
 
@@ -58,16 +64,24 @@ enum class JnirtError(val code: Int) {
  * ```
  */
 interface ErrorDomain<E : LibraryError> {
-    /** The string of `JNIRT_ERROR_DOMAIN` in the library's C++. */
+    /**
+     * The string of `JNIRT_ERROR_DOMAIN` in the library's C++.
+     * */
     val domain: String
 
-    /** A number of this domain to the enum value. A number nobody knows (a newer native library) is `Unknown`. */
+    /**
+     * A number of this domain to the enum value. A number nobody knows (a newer native library) is `Unknown`.
+     * */
     fun fromCode(code: Int): E
 
-    /** A common error of the runtime to the value of this library that stands for it. */
+    /**
+     * A common error of the runtime to the value of this library that stands for it.
+     * */
     fun fromRuntime(error: JnirtError): E
 
-    /** The error of [e] in this library's terms: its own, a common one, or `null` for another library's. */
+    /**
+     * The error of [e] in this library's terms: its own, a common one, or `null` for another library's.
+     * */
     fun map(e: NativeException): E? = when (e.domain) {
         domain -> fromCode(e.code)
         RUNTIME_DOMAIN -> fromRuntime(JnirtError.fromCode(e.code))
@@ -75,5 +89,7 @@ interface ErrorDomain<E : LibraryError> {
     }
 }
 
-/** [ErrorDomain.map] as an extension: `e.asError(CameraError)`. */
+/**
+ * [ErrorDomain.map] as an extension: `e.asError(CameraError)`.
+ * */
 fun <E : LibraryError> NativeException.asError(domain: ErrorDomain<E>): E? = domain.map(this)

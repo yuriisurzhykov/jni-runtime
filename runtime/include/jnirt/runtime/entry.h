@@ -41,20 +41,20 @@ namespace jnirt::detail {
     // pending in `env`. Never throws.
     void handleNativeException(JNIEnv *env) noexcept;
 
-    // The function that JNI calls instead of Fn. Same parameters as Fn, so RegisterNatives does not notice.
+    // The function that JNI calls instead of Func. Same parameters as Func, so RegisterNatives does not notice.
     // After an exception it returns 0 / false / nullptr: Java never looks at the value, it sees the exception.
-    template<auto Fn, class R, class Self, class... P>
-    R entryCall(JNIEnv *env, Self self, P... args) {
+    template<auto Func, class ReturnType, class Self, class... Args>
+    ReturnType entryCall(JNIEnv *env, Self self, Args... args) {
         try {
-            if constexpr (std::is_void_v<R>) {
-                Fn(env, self, args...);
+            if constexpr (std::is_void_v<ReturnType>) {
+                Func(env, self, args...);
             } else {
-                return Fn(env, self, args...);
+                return Func(env, self, args...);
             }
         } catch (...) {
             handleNativeException(env);
         }
-        if constexpr (!std::is_void_v<R>) return R();
+        if constexpr (!std::is_void_v<ReturnType>) return ReturnType();
     }
 } // namespace jnirt::detail
 

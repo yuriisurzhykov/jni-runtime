@@ -1,6 +1,7 @@
 package jnirt
 
 import android.util.Log
+import jnirt.NativeLogBridge.log
 
 /**
  * Where the log lines of native code arrive. C++ `LOGI(...)` calls [log] for every line that passes the level
@@ -22,16 +23,23 @@ import android.util.Log
 object NativeLogBridge {
 
     fun interface Receiver {
-        /** [priority] is a constant of `android.util.Log` (VERBOSE 2 ... ERROR 6). */
+
+        /**
+         * [priority] is a constant of `android.util.Log` (VERBOSE 2 ... ERROR 6).
+         * */
         fun log(priority: Int, tag: String, message: String)
     }
 
-    /** Where native lines go; `null` means `android.util.Log`. */
+    /**
+     * Where native lines go; `null` means `android.util.Log`.
+     * */
     @Volatile
     @JvmStatic
     var receiver: Receiver? = null
 
-    /** The lowest priority native code still logs (an `android.util.Log` constant). Needs the library loaded. */
+    /**
+     * The lowest priority native code still logs (an `android.util.Log` constant). Needs the library loaded.
+     * */
     @JvmStatic
     external fun setNativeLevel(priority: Int)
 

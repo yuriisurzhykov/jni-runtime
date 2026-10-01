@@ -69,6 +69,17 @@ public class Thrower {
         }
     }
 
+    // the first two frames of the stack trace of what arrives: the native method, then its Java caller
+    public static String probeCaller(int kind) {
+        try {
+            new Thrower().boom(kind);
+            return "no exception";
+        } catch (Throwable t) {
+            StackTraceElement[] stack = t.getStackTrace();
+            return stack[0] + " | " + stack[1];
+        }
+    }
+
     public static int depth(int kind) {
         try {
             new Thrower().boom(kind);
