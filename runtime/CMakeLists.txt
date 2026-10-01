@@ -1,6 +1,11 @@
 add_library(jnirt_runtime STATIC
+        src/class_cache.cpp
         src/env.cpp
+        src/exception.cpp
+        src/init.cpp
         src/ref.cpp
+        src/registry.cpp
+        src/selfcheck.cpp
         src/vm.cpp
 )
 add_library(jnirt::runtime ALIAS jnirt_runtime)
@@ -13,6 +18,9 @@ target_link_libraries(jnirt_runtime
         PUBLIC jnirt::support          # runtime -> support, never back
         PRIVATE jnirt::options
 )
+
+# The version the Kotlin side (jnirt.NativeLoader.VERSION) must have: init() compares them at startup.
+target_compile_definitions(jnirt_runtime PRIVATE JNIRT_VERSION="${PROJECT_VERSION}")
 
 # jni.h: the NDK sysroot has it on Android. On the host it comes from the JDK (needed for host tests).
 if (NOT ANDROID)

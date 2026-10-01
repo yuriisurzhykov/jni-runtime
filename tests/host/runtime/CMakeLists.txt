@@ -13,3 +13,16 @@ target_include_directories(runtime_ref_test PRIVATE ${PROJECT_SOURCE_DIR}/runtim
 # The static_asserts need no JVM; the lookups at the bottom of the file start one.
 jnirt_add_test(runtime_signature_test signature_test.cpp)
 target_link_libraries(runtime_signature_test PRIVATE jnirt::runtime ${JAVA_JVM_LIBRARY})
+
+# class_cache, registry and init against a real JVM with the Java classes of tests/host/java.
+function(jnirt_add_jvm_test name source)
+    jnirt_add_test(${name} ${source})
+    target_link_libraries(${name} PRIVATE jnirt::runtime ${JAVA_JVM_LIBRARY})
+    target_include_directories(${name} PRIVATE ${PROJECT_SOURCE_DIR}/runtime/src)   # the startup steps and counters
+    target_compile_definitions(${name} PRIVATE JNIRT_TEST_CLASSPATH="${JNIRT_TEST_CLASSES_DIR}")
+    add_dependencies(${name} jnirt_test_classes)
+endfunction()
+
+jnirt_add_jvm_test(runtime_class_cache_test class_cache_test.cpp)
+jnirt_add_jvm_test(runtime_registry_test registry_test.cpp)
+jnirt_add_jvm_test(runtime_init_test init_test.cpp)

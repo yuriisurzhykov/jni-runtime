@@ -15,5 +15,21 @@ function(jnirt_add_test name)
     gtest_discover_tests(${name})
 endfunction()
 
+# Java classes for the tests that need a real JVM (class_cache, registry, init): compiled with javac, found through
+# JNIRT_TEST_CLASSPATH. jnirt/NativeLoader.java stands in for the Kotlin NativeLoader and gets the runtime's version.
+find_package(Java REQUIRED COMPONENTS Development)
+set(JNIRT_TEST_CLASSES_DIR ${CMAKE_CURRENT_BINARY_DIR}/classes)
+set(JNIRT_TEST_GENERATED_JAVA ${CMAKE_CURRENT_BINARY_DIR}/java/jnirt/NativeLoader.java)
+configure_file(java/jnirt/NativeLoader.java.in ${JNIRT_TEST_GENERATED_JAVA} @ONLY)
+file(GLOB_RECURSE JNIRT_TEST_JAVA_SOURCES CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/java/*.java)
+add_custom_command(
+        OUTPUT ${JNIRT_TEST_CLASSES_DIR}/.compiled
+        COMMAND ${CMAKE_COMMAND} -E make_directory ${JNIRT_TEST_CLASSES_DIR}
+        COMMAND ${Java_JAVAC_EXECUTABLE} -d ${JNIRT_TEST_CLASSES_DIR} ${JNIRT_TEST_JAVA_SOURCES} ${JNIRT_TEST_GENERATED_JAVA}
+        COMMAND ${CMAKE_COMMAND} -E touch ${JNIRT_TEST_CLASSES_DIR}/.compiled
+        DEPENDS ${JNIRT_TEST_JAVA_SOURCES} ${JNIRT_TEST_GENERATED_JAVA}
+)
+add_custom_target(jnirt_test_classes DEPENDS ${JNIRT_TEST_CLASSES_DIR}/.compiled)
+
 add_subdirectory(support)
 add_subdirectory(runtime)

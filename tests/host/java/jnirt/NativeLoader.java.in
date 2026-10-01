@@ -1,0 +1,17 @@
+package jnirt;
+
+// Stands in for android/src/main/kotlin/jnirt/NativeLoader.kt on the host: the same name, the same two members that
+// the native side reads. VERSION is not final so that a test can change it.
+public class NativeLoader {
+    public static String VERSION = "@PROJECT_VERSION@";
+
+    public static String nativeMethodNames(Class<?> cls) {
+        StringBuilder names = new StringBuilder();
+        for (java.lang.reflect.Method method : cls.getDeclaredMethods()) {
+            if (!java.lang.reflect.Modifier.isNative(method.getModifiers())) continue;
+            if (names.length() > 0) names.append(',');
+            names.append(method.getName());
+        }
+        return names.toString();
+    }
+}

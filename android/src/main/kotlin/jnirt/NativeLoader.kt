@@ -9,10 +9,15 @@ import java.lang.reflect.Modifier
  * consumer-rules.pro: R8 sees no Kotlin caller for them.
  */
 object NativeLoader {
-    /** Must equal the version of the native runtime (the CMake project version); init fails with JNI_ERR if not. */
+
+    /**
+     * Must equal the version of the native runtime (the CMake project version); init fails with JNI_ERR if not.
+     * */
     const val VERSION = "0.1.0"
 
-    /** `System.loadLibrary`, with a pointer to the log when the startup check of `jnirt::init` failed. */
+    /**
+     * `System.loadLibrary`, with a pointer to the log when the startup check of `jnirt::init` failed.
+     * */
     @JvmStatic
     fun load(name: String) {
         try {
@@ -22,7 +27,9 @@ object NativeLoader {
         }
     }
 
-    /** The names of the `external fun` of [cls], comma separated: native code checks that it registered each one. */
+    /**
+     * The names of the `external fun` of [cls], comma separated: native code checks that it registered each one.
+     * */
     @JvmStatic
     fun nativeMethodNames(cls: Class<*>): String =
         cls.declaredMethods.filter { Modifier.isNative(it.modifiers) }.joinToString(",") { it.name }

@@ -10,8 +10,8 @@ Proposed. Implementation: roadmap P3.4, P3.5, P3.6. Explained with examples:
 ADR-0001 §4.1 says every `jclass`, `jmethodID` and `jfieldID` is resolved once in `JNI_OnLoad`, §7.4 says natives are
 registered with `RegisterNatives`, §9.1 says startup fails fast when the Kotlin side does not match. Done by hand this
 is the most repetitive and most error-prone part of JNI: `FindClass`, `NewGlobalRef`, `DeleteLocalRef`, a `GetMethodID`
-with a hand-written signature, a null check, a `JNINativeMethod[]`, and an error message that says nothing about
-*which* name was wrong. A typo is found in production, on the first call, on a thread that may not even see the class.
+with a hand-written signature, a null check, a `JNINativeMethod[]`, and an error message that says nothing about *which*
+name was wrong. A typo is found in production, on the first call, on a thread that may not even see the class.
 
 Three decisions were already made and are only applied here: signatures come from C++ types (ADR-0005), references are
 RAII (ADR-0004), a Java exception thrown by a call from native code is cleared and turned into a C++ exception that
@@ -38,13 +38,13 @@ struct CameraJ : jnirt::JavaClass<CameraJ> {
 };
 ```
 
-| Member                      | Kotlin                                      | Use                                          |
-|-----------------------------|---------------------------------------------|----------------------------------------------|
-| `Field<C, T>`               | a property with a backing field (`@JvmField`, `private var`) | `.get(env, obj)`, `.set(env, obj, v)` |
-| `StaticField<C, T>`         | `@JvmField` / `const val` in a companion, top-level `val` | `.get(env)`, `.set(env, v)`      |
-| `Method<C, R(A...)>`        | an instance function                        | `m(env, obj, args...)`                       |
-| `StaticMethod<C, R(A...)>`  | `@JvmStatic` function                       | `m(env, args...)`                            |
-| `Constructor<C, void(A...)>`| a constructor (no name to write)            | `c(env, args...)` gives `LocalRef<jobject>`  |
+| Member                       | Kotlin                                                       | Use                                         |
+|------------------------------|--------------------------------------------------------------|---------------------------------------------|
+| `Field<C, T>`                | a property with a backing field (`@JvmField`, `private var`) | `.get(env, obj)`, `.set(env, obj, v)`       |
+| `StaticField<C, T>`          | `@JvmField` / `const val` in a companion, top-level `val`    | `.get(env)`, `.set(env, v)`                 |
+| `Method<C, R(A...)>`         | an instance function                                         | `m(env, obj, args...)`                      |
+| `StaticMethod<C, R(A...)>`   | `@JvmStatic` function                                        | `m(env, args...)`                           |
+| `Constructor<C, void(A...)>` | a constructor (no name to write)                             | `c(env, args...)` gives `LocalRef<jobject>` |
 
 Types are those of ADR-0005. A parameter, result or field that is one of your classes is written as its description
 (`ListenerJ`) and travels as a `jobject`; `jnirt::Object` is `java.lang.Object`. `JavaClass` is defined here
@@ -60,8 +60,8 @@ the list is complete when `init` runs.
 
 - The list lives in a `ClassInfo` that is created by a function-local static (`classInfo<C>()`), so the order of static
   initialization between files does not matter: a member can never be added to a list that does not exist yet.
-- `ClassInfo` is allocated with `new` and never deleted. It holds the global reference to the class
-  (ADR-0004: nothing in static storage destroys a reference at exit, when the VM may be gone).
+- `ClassInfo` is allocated with `new` and never deleted. It holds the global reference to the class (ADR-0004: nothing
+  in static storage destroys a reference at exit, when the VM may be gone).
 - Checked on gcc 13 and clang, `-O0` and `-O2`, through a static library: when the linker keeps any file that includes
   the description, **all** members of that class are registered. When it keeps none, nobody calls the members either.
   The dangerous case "called but not registered" does not exist.
@@ -79,7 +79,7 @@ the list is complete when `init` runs.
 - A null object is `JNIRT_REQUIRE` (`IllegalArgument`) in debug and release: the cost is one compare, the alternative is
   a crash inside the JVM.
 - **Debug only:** `IsInstanceOf(obj, class)` before an instance call or field access, and a check that the member was
-  found. A call before `init` fails with "was used before jnirt::init() found it" instead of passing a null ID to JNI.
+  found. A call before `init` fails with "was used before jnirt::init () found it" instead of passing a null ID to JNI.
 - A class may name itself in its own members: `Method<CameraJ, CameraJ()>`. Whether a type is a "described class" is
   decided without looking inside it (`JniForm<T>`: arithmetic and pointer types are themselves, anything else is
   `jobject`), because `CameraJ` is incomplete while its members are declared; `descriptor<CameraJ>` is only built when
@@ -182,10 +182,11 @@ Two more things are checked because lookups can not see them:
   runtime was built with (`JNIRT_VERSION`, the CMake project version). Done in native code so that nobody can bypass
   it by calling `System.loadLibrary` directly. A missing field means R8 removed it: `consumer-rules.pro` did not
   apply, and that shows at startup too.
-- **`external fun` that nobody registered.** Without it, a forgotten `native<>` is an `UnsatisfiedLinkError` on the first
+- **`external fun` that nobody registered.** Without it, a forgotten `native<>` is an `UnsatisfiedLinkError` on the
+  first
   call, in production (there are no `Java_...` names to link, ADR-0001 §7.4). `init` asks
-  `NativeLoader.nativeMethodNames(Class)` for the names of the native methods of each added class and compares
-  **names** with what was registered (overloads of an `external fun` in one class are rare, and comparing signatures
+  `NativeLoader.nativeMethodNames(Class)` for the names of the native methods of each added class and compares **names**
+  with what was registered (overloads of an `external fun` in one class are rare, and comparing signatures
   would need reflection types). The reflection is in Kotlin (a few lines), where it is natural; native code only sees
   a `String`, which the table of ADR-0005 already supports. A class that has `external fun` but was never added is not
   seen; only code generation (P11) catches that.
@@ -195,11 +196,11 @@ and make the `external fun` check debug-only if it matters.
 
 ### 8. Threads and order
 
-| Phase                 | Thread                        | What is written                      |
-|-----------------------|-------------------------------|--------------------------------------|
-| library load          | one (the loader holds its lock) | the lists of members and classes   |
-| `init` in `JNI_OnLoad`| one                           | class references, IDs, natives       |
-| everything after      | any                           | nothing: read-only                   |
+| Phase                  | Thread                          | What is written                  |
+|------------------------|---------------------------------|----------------------------------|
+| library load           | one (the loader holds its lock) | the lists of members and classes |
+| `init` in `JNI_OnLoad` | one                             | class references, IDs, natives   |
+| everything after       | any                             | nothing: read-only               |
 
 No locks and no atomics (except the once-only flag of `init`): a native method can not run before `RegisterNatives`,
 and a thread created after `init` sees everything written before it. The rule for developers: **do not use Java from
@@ -214,13 +215,13 @@ class: R8 sees no Kotlin caller for the version and the method.
 
 ### 10. Not in this step
 
-| What                                         | Why / when                                                                      |
-|----------------------------------------------|---------------------------------------------------------------------------------|
-| `CallNonvirtual*Method` (`super.foo()`)      | the one JNI call kind not covered; native code almost never needs it; on demand |
-| `jobjectArray` in members                    | P5, with the element type (ADR-0005 §9)                                          |
-| typed references (`LocalRef<CameraJ>`)       | compile-time object checks; the debug `IsInstanceOf` covers it for now          |
+| What                                           | Why / when                                                                               |
+|------------------------------------------------|------------------------------------------------------------------------------------------|
+| `CallNonvirtual*Method` (`super.foo()`)        | the one JNI call kind not covered; native code almost never needs it; on demand          |
+| `jobjectArray` in members                      | P5, with the element type (ADR-0005 §9)                                                  |
+| typed references (`LocalRef<CameraJ>`)         | compile-time object checks; the debug `IsInstanceOf` covers it for now                   |
 | lookup of a class by a different `ClassLoader` | `FindClass` in `JNI_OnLoad` sees the app loader; a library that needs another asks in P9 |
-| `entry()` around natives                     | P4                                                                              |
+| `entry()` around natives                       | P4                                                                                       |
 
 ## Consequences
 
@@ -236,13 +237,13 @@ class: R8 sees no Kotlin caller for the version and the method.
 
 ### Tests (host, real JVM, `-Xcheck:jni`)
 
-| Check                                                                   | Where                    |
-|-------------------------------------------------------------------------|--------------------------|
-| every primitive: instance/static field and method round trip            | `class_cache_test`       |
-| object results and fields, constructors, interface call, self reference | `class_cache_test`       |
-| `JavaException`: text, cleared exception, copies, global reference count | `class_cache_test`       |
-| null object, wrong object (debug)                                       | `class_cache_test`       |
-| every startup problem has an exact text; all problems at once           | `class_cache_test`, `registry_test` |
-| natives registered and called through Java; static/instance mismatch; not native; duplicates; forgotten `external fun`; class not added; version mismatch | `registry_test` |
-| `init` success, second call is a crash                                  | `init_test`              |
-| signature rules of `native<>`                                           | `static_assert` in `registry_test`; failing cases recorded in the learning guide |
+| Check                                                                                                                                                     | Where                                                                            |
+|-----------------------------------------------------------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------|
+| every primitive: instance/static field and method round trip                                                                                              | `class_cache_test`                                                               |
+| object results and fields, constructors, interface call, self reference                                                                                   | `class_cache_test`                                                               |
+| `JavaException`: text, cleared exception, copies, global reference count                                                                                  | `class_cache_test`                                                               |
+| null object, wrong object (debug)                                                                                                                         | `class_cache_test`                                                               |
+| every startup problem has an exact text; all problems at once                                                                                             | `class_cache_test`, `registry_test`                                              |
+| natives registered and called through Java; static/instance mismatch; not native; duplicates; forgotten `external fun`; class not added; version mismatch | `registry_test`                                                                  |
+| `init` success, second call is a crash                                                                                                                    | `init_test`                                                                      |
+| signature rules of `native<>`                                                                                                                             | `static_assert` in `registry_test`; failing cases recorded in the learning guide |
