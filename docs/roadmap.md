@@ -90,7 +90,8 @@ Build order inside the phase matters:
    detach, `detachCurrentThread()`, thread names, attach failure is `FATAL`.
 2. `[x]` **`ref`** ([ADR-0004](adr/0004-references.md)): move-only `LocalRef`, `GlobalRef`, `WeakGlobalRef`; weak refs
    promote to a `LocalRef` or empty; debug checks for detach with live `LocalRef` and cross-thread `LocalRef`.
-3. **`signature`**: `constexpr` signatures from C++ types (host-testable without a JVM).
+3. `[x]` **`signature`** ([ADR-0005](adr/0005-signatures.md)): `descriptor<T>` / `signature<F>` built at compile time from
+   JNI types and `JavaClass` descriptions; `jobject` and `bool` do not compile.
 4. **Minimal exception check**: pending exception after `FindClass` / `GetMethodID`: log and clear.
 5. **`class_cache`**: declarative class/method/field descriptions, resolved in `JNI_OnLoad`, stored as global refs.
 6. **`registry` + `init()` + selfcheck**: `register_xxx(Registry&)`, `RegisterNatives`, native/Kotlin version match.

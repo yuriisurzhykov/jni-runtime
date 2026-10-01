@@ -9,3 +9,7 @@ jnirt_add_test(runtime_ref_test ref_test.cpp)
 target_link_libraries(runtime_ref_test PRIVATE jnirt::runtime ${JAVA_JVM_LIBRARY})
 # Reads the reference counters from the runtime's internal header.
 target_include_directories(runtime_ref_test PRIVATE ${PROJECT_SOURCE_DIR}/runtime/src)
+
+# The static_asserts need no JVM; the lookups at the bottom of the file start one.
+jnirt_add_test(runtime_signature_test signature_test.cpp)
+target_link_libraries(runtime_signature_test PRIVATE jnirt::runtime ${JAVA_JVM_LIBRARY})
