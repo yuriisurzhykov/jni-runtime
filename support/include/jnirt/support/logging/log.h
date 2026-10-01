@@ -16,5 +16,13 @@ namespace jnirt::logging {
 
     void write(Level level, const char *tag, const char *fmt, ...) noexcept
     __attribute__((format(printf, 3, 4)));
+
+    // A forwarder sees every line that passed the level filter, formatted, before the platform sink (logcat).
+    // It returns true if it took the line (the sink is then skipped), false to leave the line to the sink. It may be
+    // called from any thread and must not throw. The runtime installs one that sends lines to Kotlin
+    // (NativeLogBridge); nullptr removes it. Lines of JNIRT_ASSERT / JNIRT_FATAL never go through it.
+    using Forwarder = bool (*)(Level level, const char *tag, const char *message) noexcept;
+
+    void setForwarder(Forwarder forwarder) noexcept;
 } // namespace jnirt::logging
 #endif //JNIRT_SUPPORT_LOGGING_LOG_H

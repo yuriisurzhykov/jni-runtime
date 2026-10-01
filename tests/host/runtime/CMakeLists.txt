@@ -26,3 +26,11 @@ endfunction()
 jnirt_add_jvm_test(runtime_class_cache_test class_cache_test.cpp)
 jnirt_add_jvm_test(runtime_registry_test registry_test.cpp)
 jnirt_add_jvm_test(runtime_init_test init_test.cpp)
+jnirt_add_jvm_test(runtime_entry_test entry_test.cpp)
+
+# The domain check works on lists: no JVM.
+jnirt_add_test(runtime_domains_test domains_test.cpp)
+target_link_libraries(runtime_domains_test PRIVATE jnirt::runtime)
+target_include_directories(runtime_domains_test PRIVATE ${PROJECT_SOURCE_DIR}/runtime/src)
+
+jnirt_add_jvm_test(runtime_log_bridge_test log_bridge_test.cpp)

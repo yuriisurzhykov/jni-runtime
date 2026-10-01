@@ -5,7 +5,7 @@ camera that produces frames, and Kotlin has to be told about each one. For every
 runtime does inside, and a Kotlin analogy.
 
 Some pieces come from later steps and are marked in comments: `GlobalRef` (P3.2), `class_cache` (P3.5),
-`entry()` (P4). Only the `vm` / `env` part matters here.
+`entry()` (P4, done). Only the `vm` / `env` part matters here.
 
 ## The two players
 
@@ -78,7 +78,7 @@ void startStream(JNIEnv* env, jobject, jlong handle, jobject listener) {
         while (auto frame = camera->nextFrame()) {
             JNIEnv* env = jnirt::env();            // first call attaches; later calls are just GetEnv
             env->CallVoidMethod(cb.get(), ids.onFrame, (jint) frame->size());
-            // P4: the runtime checks ExceptionCheck after the call
+            // raw JNI call: check ExceptionCheck yourself (a Method<> from class_cache does it for you)
         }
     }).detach();                                   // std::thread::detach, not a JNI detach
 }
@@ -192,7 +192,7 @@ IllegalStateException: thread "DefaultDispatcher-worker-1" was attached by the J
   fix: only threads that jnirt attached can be detached; remove this call.
 ```
 
-This is `JNIRT_CHECK`: the call came from Kotlin, so after P4 you get a normal exception whose stack points at the
+This is `JNIRT_CHECK`: the call came from Kotlin, so `entry()` turns it into a normal exception whose stack points at the
 Kotlin line.
 
 ### 6.4 Detach with a live `LocalRef`

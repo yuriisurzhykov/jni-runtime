@@ -78,7 +78,8 @@ namespace jnirt {
 
         // false, but only once T is known: lets a static_assert fire only for the type somebody actually used.
         template<class T>
-        struct AlwaysFalse : std::false_type {};
+        struct AlwaysFalse : std::false_type {
+        };
 
         template<class T>
         constexpr bool isJavaClass = std::is_base_of_v<JavaClass<T>, T>;
@@ -98,28 +99,105 @@ namespace jnirt {
                           "and classes described with jnirt::JavaClass.");
         };
 
-        template<> struct Descriptor<void> { static constexpr auto value = text("V"); };
-        template<> struct Descriptor<jboolean> { static constexpr auto value = text("Z"); };
-        template<> struct Descriptor<jbyte> { static constexpr auto value = text("B"); };
-        template<> struct Descriptor<jchar> { static constexpr auto value = text("C"); };
-        template<> struct Descriptor<jshort> { static constexpr auto value = text("S"); };
-        template<> struct Descriptor<jint> { static constexpr auto value = text("I"); };
-        template<> struct Descriptor<jlong> { static constexpr auto value = text("J"); };
-        template<> struct Descriptor<jfloat> { static constexpr auto value = text("F"); };
-        template<> struct Descriptor<jdouble> { static constexpr auto value = text("D"); };
+        template<>
+        struct Descriptor<void> {
+            static constexpr auto value = text("V");
+        };
 
-        template<> struct Descriptor<jstring> { static constexpr auto value = text("Ljava/lang/String;"); };
-        template<> struct Descriptor<jclass> { static constexpr auto value = text("Ljava/lang/Class;"); };
-        template<> struct Descriptor<jthrowable> { static constexpr auto value = text("Ljava/lang/Throwable;"); };
+        template<>
+        struct Descriptor<jboolean> {
+            static constexpr auto value = text("Z");
+        };
 
-        template<> struct Descriptor<jbooleanArray> { static constexpr auto value = text("[Z"); };
-        template<> struct Descriptor<jbyteArray> { static constexpr auto value = text("[B"); };
-        template<> struct Descriptor<jcharArray> { static constexpr auto value = text("[C"); };
-        template<> struct Descriptor<jshortArray> { static constexpr auto value = text("[S"); };
-        template<> struct Descriptor<jintArray> { static constexpr auto value = text("[I"); };
-        template<> struct Descriptor<jlongArray> { static constexpr auto value = text("[J"); };
-        template<> struct Descriptor<jfloatArray> { static constexpr auto value = text("[F"); };
-        template<> struct Descriptor<jdoubleArray> { static constexpr auto value = text("[D"); };
+        template<>
+        struct Descriptor<jbyte> {
+            static constexpr auto value = text("B");
+        };
+
+        template<>
+        struct Descriptor<jchar> {
+            static constexpr auto value = text("C");
+        };
+
+        template<>
+        struct Descriptor<jshort> {
+            static constexpr auto value = text("S");
+        };
+
+        template<>
+        struct Descriptor<jint> {
+            static constexpr auto value = text("I");
+        };
+
+        template<>
+        struct Descriptor<jlong> {
+            static constexpr auto value = text("J");
+        };
+
+        template<>
+        struct Descriptor<jfloat> {
+            static constexpr auto value = text("F");
+        };
+
+        template<>
+        struct Descriptor<jdouble> {
+            static constexpr auto value = text("D");
+        };
+
+        template<>
+        struct Descriptor<jstring> {
+            static constexpr auto value = text("Ljava/lang/String;");
+        };
+
+        template<>
+        struct Descriptor<jclass> {
+            static constexpr auto value = text("Ljava/lang/Class;");
+        };
+
+        template<>
+        struct Descriptor<jthrowable> {
+            static constexpr auto value = text("Ljava/lang/Throwable;");
+        };
+
+        template<>
+        struct Descriptor<jbooleanArray> {
+            static constexpr auto value = text("[Z");
+        };
+
+        template<>
+        struct Descriptor<jbyteArray> {
+            static constexpr auto value = text("[B");
+        };
+
+        template<>
+        struct Descriptor<jcharArray> {
+            static constexpr auto value = text("[C");
+        };
+
+        template<>
+        struct Descriptor<jshortArray> {
+            static constexpr auto value = text("[S");
+        };
+
+        template<>
+        struct Descriptor<jintArray> {
+            static constexpr auto value = text("[I");
+        };
+
+        template<>
+        struct Descriptor<jlongArray> {
+            static constexpr auto value = text("[J");
+        };
+
+        template<>
+        struct Descriptor<jfloatArray> {
+            static constexpr auto value = text("[F");
+        };
+
+        template<>
+        struct Descriptor<jdoubleArray> {
+            static constexpr auto value = text("[D");
+        };
 
         // C::name copied into a Text, so it can be glued to "L" and ";".
         template<class C>
@@ -132,7 +210,7 @@ namespace jnirt {
 
         // The last row: any class described with JavaClass<C>.
         template<class C>
-        struct Descriptor<C, std::enable_if_t<isJavaClass<C>>> {
+        struct Descriptor<C, std::enable_if_t<isJavaClass<C> > > {
             static_assert(isJvmClassName(C::name),
                           "jnirt: JavaClass name must be in JVM form: \"com/acme/Camera\" (slashes, '$' for nested "
                           "classes), not \"com.acme.Camera\" and not \"Lcom/acme/Camera;\"");
@@ -147,7 +225,8 @@ namespace jnirt {
         // "(" + descriptors of the parameters + ")" + descriptor of the result
         template<class R, class... Params>
         struct Signature<R(Params...)> {
-            static constexpr auto value = (text("(") + ... + Descriptor<Params>::value) + text(")") + Descriptor<R>::value;
+            static constexpr auto value = (text("(") + ... + Descriptor<Params>::value) + text(")") + Descriptor<
+                                              R>::value;
         };
     } // namespace detail
 

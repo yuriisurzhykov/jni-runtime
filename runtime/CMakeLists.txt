@@ -1,11 +1,15 @@
 add_library(jnirt_runtime STATIC
         src/class_cache.cpp
+        src/domains.cpp
+        src/entry.cpp
         src/env.cpp
         src/exception.cpp
         src/init.cpp
+        src/log_forward.cpp
         src/ref.cpp
         src/registry.cpp
         src/selfcheck.cpp
+        src/utf.cpp
         src/vm.cpp
 )
 add_library(jnirt::runtime ALIAS jnirt_runtime)

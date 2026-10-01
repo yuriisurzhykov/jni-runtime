@@ -19,12 +19,27 @@
 #include <stdexcept>
 #include <string>
 #include <type_traits>
+#include <vector>
 
 namespace jnirt {
     // Ties an error-code enum to its domain name. Do not specialize by hand: use JNIRT_ERROR_DOMAIN.
     template<class E>
     struct ErrorTraits {
     };
+
+    namespace detail {
+        // One JNIRT_ERROR_DOMAIN: the domain name and the enum it was written for ("wificameras::Errc").
+        struct DomainDeclaration {
+            const char *domain;
+            const char *enumName;
+        };
+
+        // Called by JNIRT_ERROR_DOMAIN when the library is loaded. Not for direct use. Always returns true.
+        bool declareDomain(const char *domain, const char *enumName) noexcept;
+
+        // Every domain declared so far in this library (a copy). jnirt::init() checks that no two enums share a name.
+        std::vector<DomainDeclaration> declaredDomains();
+    } // namespace detail
 
     namespace detail {
         template<class E, class = void>
@@ -137,12 +152,14 @@ namespace jnirt {
 
 // Binds an error-code enum to a domain name. Use once per enum, at global scope (outside any namespace):
 //   JNIRT_ERROR_DOMAIN(wificameras::Errc, "wificameras")
-// Domain names must be unique across libraries.
-#define JNIRT_ERROR_DOMAIN(EnumType, DomainName)                                  \
-    namespace jnirt {                                                             \
-        template <> struct ErrorTraits<EnumType> {                                \
-            static constexpr const char* kDomain = DomainName;                    \
-        };                                                                        \
+// Domain names must be unique across libraries: the macro also records the pair when the library is loaded, and
+// jnirt::init() fails with JNI_ERR, naming both enums, if two enums share a name.
+#define JNIRT_ERROR_DOMAIN(EnumType, DomainName)                                                      \
+    namespace jnirt {                                                                                 \
+        template <> struct ErrorTraits<EnumType> {                                                    \
+            static constexpr const char* kDomain = DomainName;                                        \
+            static inline const bool kDeclared = ::jnirt::detail::declareDomain(DomainName, #EnumType); \
+        };                                                                                            \
     }
 
 JNIRT_ERROR_DOMAIN(jnirt::Errc, "jnirt")

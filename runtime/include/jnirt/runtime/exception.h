@@ -1,7 +1,7 @@
 // Exception handling/creation in two ways: C++ error <-> Java exception.
 //
-// P3.5 has only the first half that class_cache needs: a Java exception seen from C++. The other half
-// (C++ error -> Java exception, entry()) is P4.
+// This is the half that class_cache needs: a Java exception seen from C++. The other half (C++ error -> Java
+// exception) is entry.h.
 //
 //   try {
 //       CameraJ::onFrame(env, camera, 1, name);          // the Java method threw
@@ -10,7 +10,7 @@
 //   }
 //
 // Calling Java through class_cache clears the pending Java exception and throws JavaException instead, so the JNI
-// rule "no JNI calls with a pending exception" can not be broken by forgetting a check. entry() (P4) hands
+// rule "no JNI calls with a pending exception" can not be broken by forgetting a check. entry() (entry.h) hands
 // throwable() back to Kotlin as it is, so a Java exception that goes through native code arrives unchanged.
 //
 // Created by Yurii Surzhykov on 9/28/26.

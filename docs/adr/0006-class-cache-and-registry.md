@@ -89,7 +89,7 @@ the list is complete when `init` runs.
 
 ```cpp
 class JavaException : public std::exception {
-    jthrowable  throwable() const noexcept;   // the original, for entry() (P4) to hand back to Kotlin unchanged
+    jthrowable  throwable() const noexcept;   // the original, for entry() (ADR-0007) to hand back to Kotlin unchanged
     const char* what() const noexcept;        // Throwable.toString(), taken when it was caught
 };
 ```
@@ -98,7 +98,7 @@ It owns the `Throwable` as a global reference inside a `shared_ptr`, so it is us
 throws (the same rule as `jnirt::Error`). `toString()` is called once, at the catch, so logging it later needs no
 JNI. If `toString()` itself throws, the text is `<a Java exception whose toString() threw>`: no recursion.
 
-This is the half of `exception.h` that class_cache needs. C++ error to Java exception, and `entry()`, stay in P4.
+This is the half of `exception.h` that class_cache needs. C++ error to Java exception, and `entry()`, are ADR-0007.
 
 ### 5. Registry
 
@@ -124,7 +124,7 @@ void register_camera(jnirt::Registry& r) {
   accepted), the Java signature is `R(params...)`, `jclass` marks a static method, a `jobject` needs the explicit Java
   type and it is checked against the function at compile time (same arity, same JNI form of each type). Each of these
   fails with a message that says what to write; the first line of the compiler output is that message.
-- P4 will make `native<>` register an `entry()` wrapper instead of `fn`; the call site does not change.
+- `native<>` registers an `entry()` wrapper instead of `fn` (ADR-0007 §1); the call site did not change.
 
 ### 6. `init` and the startup
 
@@ -221,7 +221,7 @@ class: R8 sees no Kotlin caller for the version and the method.
 | `jobjectArray` in members                      | P5, with the element type (ADR-0005 §9)                                                  |
 | typed references (`LocalRef<CameraJ>`)         | compile-time object checks; the debug `IsInstanceOf` covers it for now                   |
 | lookup of a class by a different `ClassLoader` | `FindClass` in `JNI_OnLoad` sees the app loader; a library that needs another asks in P9 |
-| `entry()` around natives                       | P4                                                                                       |
+| `entry()` around natives                       | done: ADR-0007                                                                           |
 
 ## Consequences
 

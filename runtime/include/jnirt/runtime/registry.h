@@ -18,7 +18,8 @@
 //
 // A native function is `R fn(JNIEnv *env, jobject thiz, params...)` for an instance method, or with `jclass` as the
 // second parameter for a static one (Kotlin: @JvmStatic). The Java signature is the one of `R(params...)`; the
-// first two parameters are never part of it.
+// first two parameters are never part of it. What is registered is `fn` inside the try/catch of entry.h: whatever
+// `fn` throws arrives in Kotlin as a Java exception, never as a crash.
 //
 // init() returns JNI_VERSION_1_6 or JNI_ERR. On JNI_ERR the log holds every problem found, not only the first:
 // a class or member that does not exist, a native that Kotlin does not declare (or declares static), an
@@ -31,6 +32,7 @@
 
 #pragma once
 #include <jnirt/runtime/class_cache.h>
+#include <jnirt/runtime/entry.h>
 
 #include <cstddef>
 #include <initializer_list>
@@ -39,6 +41,12 @@
 #include <type_traits>
 #include <vector>
 
+// Here is the definition of the template argument names:
+// - Every Fn in this file means - function.
+// - Every R means Return type.
+// - Every E means Entry.
+// - Every P means arguments.
+// - Every C means Class.
 namespace jnirt {
     class Registry;
 
@@ -70,16 +78,22 @@ namespace jnirt {
                           "static one");
         };
 
-        template<class R, class Self, class... P>
-        struct NativeShape<R (*)(JNIEnv *, Self, P...)> {
+        template<class ReturnType, class Self, class... Args>
+        struct NativeShape<ReturnType (*)(JNIEnv *, Self, Args...)> {
             static_assert(std::is_same_v<Self, jobject> || std::is_same_v<Self, jclass>,
                           "jnirt: native<&fn>: the second parameter of fn must be exactly jobject (an instance "
                           "method) or jclass (a static method)");
 
-            using Result = R;
-            using Params = std::tuple<P...>;
-            using Signature = R(P...);   // what Java sees: no JNIEnv*, no this
+            using Result = ReturnType;
+            using Params = std::tuple<Args...>;
+            using Signature = ReturnType(Args...); // what Java sees: no JNIEnv*, no this
             static constexpr bool isStatic = std::is_same_v<Self, jclass>;
+
+            // The address that goes to RegisterNatives: Fn inside the try/catch of entry.h.
+            template<auto Func>
+            static void *entryPoint() {
+                return reinterpret_cast<void *>(&entryCall<Func, ReturnType, Self, Args...>);
+            }
         };
 
         template<class R, class Self, class... P>
@@ -162,7 +176,7 @@ namespace jnirt {
             using Shape = detail::NativeShape<decltype(Fn)>;
             using JavaFunction = typename detail::JavaSignature<Shape, Java>::type;
             registry_.addNative(index_, detail::NativeEntry{
-                                    name, jnirt::signature<JavaFunction>, reinterpret_cast<void *>(Fn),
+                                    name, jnirt::signature<JavaFunction>, Shape::template entryPoint<Fn>(),
                                     Shape::isStatic
                                 });
             return *this;
@@ -171,7 +185,8 @@ namespace jnirt {
     private:
         friend class Registry;
 
-        ClassBuilder(Registry &registry, std::size_t index) : registry_(registry), index_(index) {}
+        ClassBuilder(Registry &registry, std::size_t index) : registry_(registry), index_(index) {
+        }
 
         Registry &registry_;
         std::size_t index_;
