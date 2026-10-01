@@ -54,7 +54,7 @@ P0 Design ─► P1 Build skeleton ─► P2 support (log ✔, error ✔, assert
 | Toolchain: C++17, NDK r27, runtime min API 26, exceptions enabled     | `[x]`                       |
 | Kotlin result type: shape and how public APIs wrap `NativeException`  | `[ ]` waiting for the class |
 | Attach policy: daemon vs regular attach, behavior when attach fails   | `[x]` ADR-0003              |
-| `GlobalRef` behavior at process shutdown (leak on purpose vs release) | `[ ]`                       |
+| `GlobalRef` behavior at process shutdown (leak on purpose vs release) | `[x]` ADR-0004              |
 | `JNI_OnLoad` failure policy (`JNI_ERR` plus what is logged)           | `[ ]`                       |
 
 **Exit criteria:** ADR-0001 moves from Draft to Accepted, open questions closed.
@@ -88,7 +88,8 @@ Build order inside the phase matters:
 
 1. `[x]` **`vm` / `env`** ([ADR-0003](adr/0003-vm-and-env.md)): cache `JavaVM*`, `env()` (`GetEnv` first), `pthread_key`
    detach, `detachCurrentThread()`, thread names, attach failure is `FATAL`.
-2. **`ref`**: move-only `LocalRef`, `GlobalRef`, `WeakGlobalRef`; weak refs promote to strong or empty.
+2. `[x]` **`ref`** ([ADR-0004](adr/0004-references.md)): move-only `LocalRef`, `GlobalRef`, `WeakGlobalRef`; weak refs
+   promote to a `LocalRef` or empty; debug checks for detach with live `LocalRef` and cross-thread `LocalRef`.
 3. **`signature`**: `constexpr` signatures from C++ types (host-testable without a JVM).
 4. **Minimal exception check**: pending exception after `FindClass` / `GetMethodID`: log and clear.
 5. **`class_cache`**: declarative class/method/field descriptions, resolved in `JNI_OnLoad`, stored as global refs.
