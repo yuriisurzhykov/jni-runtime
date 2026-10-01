@@ -148,7 +148,7 @@ by `native<&fn>`, `Method`, `Field` and `Constructor`. Four steps:
 |------|----------------------------------------------------------------------------------------------------------|--------|
 | P5.1 | The table, signatures built from it, `std::string` / `u16string`, `bool`, `std::optional` (null, boxing), automatic conversion in `native<>` and in class_cache calls | `[x]`  |
 | P5.2 | Arrays of primitives (copy, piece, `withCritical`), `DirectBuffer`, logging inside `withCritical`         | `[x]`  |
-| P5.3 | `jnirt::Array<C>`, `std::vector<T>` as `List`, `std::map` as `Map`, your own types (`Convert<Frame>`)      | `[ ]`  |
+| P5.3 | `jnirt::Array<C>`, `std::vector<T>` as `List`, `std::map` as `Map`, your own types (`Convert<Frame>`)      | `[x]`  |
 | P5.4 | Startup hints for Kotlin name mangling (value class, `internal`, companion), cost of crossing (host benchmarks, `p5_bench` for Edge II) | `[ ]`  |
 
 - Kotlin specifics: value/inline class mangling, `@JvmStatic` and companion shape are rules plus a startup hint; `suspend`

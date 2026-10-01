@@ -63,7 +63,7 @@ compile, with a message that lists what is supported. A library adds rows for it
 | `jnirt::DirectBuffer`                           | `java.nio.ByteBuffer` (direct)     | from Java only | §6                                             |
 | `std::vector<T>`, `T` not primitive             | `List<T>`                          | both         | §7                                              |
 | `std::map<K, V>`, `std::unordered_map<K, V>`   | `Map<K, V>`                        | both         | §7                                              |
-| `jnirt::Array<C>`                               | `Array<C>` (`jobjectArray`)        | raw          | §7; a view, no conversion                        |
+| `jnirt::Array<C>`                               | `Array<C>` (`jobjectArray`)        | both         | §7; holds the reference, no element is converted |
 | your `struct Frame`                             | your `data class Frame`            | both         | a row you write, §7                              |
 | raw `jstring`, `jclass`, `jthrowable`, `j...Array`, a described class | as before        | raw          | stay valid, no conversion                      |
 
@@ -181,12 +181,21 @@ Kotlin allocates `ByteBuffer.allocateDirect(n)` once and passes it many times; n
 - **A local reference per element lives for one iteration** (`LocalRef` in the loop body), so the number of local
   references does not depend on the length of the list. This is an exit criterion of the phase.
 - **A raw reference as an element** (`std::vector<jstring>`) does not compile: it would point to a local reference
-  that is already deleted. Elements are values (`std::string`, your own type).
+  that is already deleted. Elements are values (`std::string`, your own type). The same holds for a `DirectBuffer` (§6)
+  and for the keys and values of a `Map`.
+- **A number in a `Map`** (`std::map<std::string, jint>`) is boxed, because a `Map` can hold nothing else (`Map<String,
+  Int>`). That is the only place where a number crosses as an object besides `std::optional<jint>`; both use one helper.
 - **Elements and values follow the same rules as parameters**: a null element for a non-optional type is an
-  `IllegalArgumentException` naming the index; `std::vector<std::optional<std::string>>` is `List<String?>`.
-- **`jnirt::Array<C>`** is the Java `Array<C>` (`jobjectArray`) with its element class `C` in the type, so the signature
-  is `[Lcom/acme/camera/Frame;`. It is a thin view of the reference (no conversion): `size(env)`, `get(env, i)`,
-  `set(env, i, object)` and `newArray<C>(env, n)`. It closes the `jobjectArray` item of ADR-0005 §9.
+  `IllegalArgumentException` naming the place (`element 3`, `the key of entry 3`, `the value of entry 3`);
+  `std::vector<std::optional<std::string>>` is `List<String?>`. When Java hands such a value to a native, Java gets the
+  exception; when C++ reads it from the result of its own call into Java, the C++ caller gets the `IllegalArgument`.
+- **`jnirt::Array<C>`** is the Java `Array<C>` (`jobjectArray`) with its element class `C` (a described class) in the
+  type, so the signature is `[Lcom/acme/camera/Frame;`. It holds a local reference to the array (a second one made with
+  `NewLocalRef`, so it survives the reference JNI gave), converts no element, and is as thread-bound as `LocalRef`:
+  `size(env)`, `get(env, i)` (a `LocalRef<jobject>`, null for a null element), `set(env, i, object)`, `raw()` and
+  `newArray<C>(env, n)`. A bad index is the JVM's exception, thrown as `JavaException`. A null array is an error unless
+  `std::optional<Array<C>>`. It closes the `jobjectArray` item of ADR-0005 §9. A `String[]` is `Array<StringJ>` with
+  `StringJ` described as `java/lang/String`; for a list of texts use `std::vector<std::string>`.
 - **Your own types.** A library adds one row for each of its structs, in `bindings/`; `core/` stays free of `jni.h`:
 
   ```cpp

@@ -92,16 +92,42 @@ namespace jnirt::detail {
         static jdouble unbox(JNIEnv *env, jobject boxed);
     };
 
-    // The JVM type of an optional: the box of a number, the type itself for a reference.
+    // T as a Java object: a reference crosses as itself, a number (and bool) as its box (Integer). The way a value is
+    // held by Java where only objects fit: an element of a Map, a value inside std::optional.
     template<class T>
-    constexpr auto optionalDescriptor() {
-        using Inner = RowOf<T>;
-        if constexpr (std::is_pointer_v<typename Inner::Jni>) {
-            return descriptorText<T>();
-        } else {
-            return Box<typename Inner::Jni>::descriptor;
+    struct ObjectOf {
+    private:
+        using Row = RowOf<T>;
+        static constexpr bool boxed = !std::is_pointer_v<typename Row::Jni>;
+
+    public:
+        using Jni = std::conditional_t<boxed, jobject, typename Row::Jni>;
+
+        static constexpr auto descriptor() {
+            if constexpr (boxed) {
+                return Box<typename Row::Jni>::descriptor;
+            } else {
+                return descriptorText<T>();
+            }
         }
-    }
+
+        // `object` is not null.
+        static T fromObject(JNIEnv *env, Jni object) {
+            if constexpr (boxed) {
+                return Row::fromJava(env, Box<typename Row::Jni>::unbox(env, object));
+            } else {
+                return Row::fromJava(env, object);
+            }
+        }
+
+        static LocalRef<Jni> toObject(JNIEnv *env, const T &value) {
+            if constexpr (boxed) {
+                return Box<typename Row::Jni>::box(env, Row::toJava(env, value));
+            } else {
+                return Row::toJava(env, value);
+            }
+        }
+    };
 } // namespace jnirt::detail
 
 namespace jnirt {
@@ -109,8 +135,6 @@ namespace jnirt {
     struct Convert<std::optional<T> > {
     private:
         using Inner = detail::RowOf<T>;
-        // A number crosses as its box (Integer); a reference crosses as itself, null meaning nothing.
-        static constexpr bool boxed = !std::is_pointer_v<typename Inner::Jni>;
 
         static_assert(!std::is_void_v<T>, "jnirt: std::optional<void> has no meaning");
         static_assert(!detail::isHandle<T>,
@@ -119,28 +143,21 @@ namespace jnirt {
         static_assert(!detail::NullFlag<Inner>::value, "jnirt: std::optional<std::optional<T>> has no Java meaning");
 
     public:
-        using Jni = std::conditional_t<boxed, jobject, typename Inner::Jni>;
+        // A number crosses as its box (Integer); a reference crosses as itself, null meaning nothing.
+        using Jni = typename detail::ObjectOf<T>::Jni;
         using Value = std::optional<T>;
         static constexpr bool acceptsNull = true;
         static constexpr bool borrowsFromJava = detail::BorrowFlag<Inner>::value;
-        static constexpr auto descriptor = detail::optionalDescriptor<T>();
+        static constexpr auto descriptor = detail::ObjectOf<T>::descriptor();
 
         static Value fromJava(JNIEnv *env, Jni value) {
             if (value == nullptr) return std::nullopt;
-            if constexpr (boxed) {
-                return Inner::fromJava(env, detail::Box<typename Inner::Jni>::unbox(env, value));
-            } else {
-                return Inner::fromJava(env, value);
-            }
+            return detail::ObjectOf<T>::fromObject(env, value);
         }
 
         static LocalRef<Jni> toJava(JNIEnv *env, const Value &value) {
             if (!value.has_value()) return {};
-            if constexpr (boxed) {
-                return detail::Box<typename Inner::Jni>::box(env, Inner::toJava(env, *value));
-            } else {
-                return Inner::toJava(env, *value);
-            }
+            return detail::ObjectOf<T>::toObject(env, *value);
         }
     };
 } // namespace jnirt

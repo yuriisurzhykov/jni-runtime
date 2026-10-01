@@ -102,6 +102,45 @@ namespace jnirt::detail {
         static inline Method<DoubleJ, jdouble()> doubleValue{"doubleValue"};
     };
 
+    // The collections (convert.cpp): a List is read with toArray() and written as an ArrayList, a Map is read through
+    // entrySet().toArray() and written as a LinkedHashMap.
+    struct CollectionJ : JavaClass<CollectionJ> {
+        static constexpr const char *name = "java/util/Collection";
+
+        static inline Method<CollectionJ, Array<Object>()> toArray{"toArray"};
+    };
+
+    struct SetJ : JavaClass<SetJ> {
+        static constexpr const char *name = "java/util/Set";
+    };
+
+    struct ArrayListJ : JavaClass<ArrayListJ> {
+        static constexpr const char *name = "java/util/ArrayList";
+
+        static inline Constructor<ArrayListJ, void(jint)> create;
+        static inline Method<ArrayListJ, jboolean(Object)> add{"add"};
+    };
+
+    struct MapEntryJ : JavaClass<MapEntryJ> {
+        static constexpr const char *name = "java/util/Map$Entry";
+
+        static inline Method<MapEntryJ, Object()> getKey{"getKey"};
+        static inline Method<MapEntryJ, Object()> getValue{"getValue"};
+    };
+
+    struct MapJ : JavaClass<MapJ> {
+        static constexpr const char *name = "java/util/Map";
+
+        static inline Method<MapJ, SetJ()> entrySet{"entrySet"};
+        static inline Method<MapJ, Object(Object, Object)> put{"put"};
+    };
+
+    struct LinkedHashMapJ : JavaClass<LinkedHashMapJ> {
+        static constexpr const char *name = "java/util/LinkedHashMap";
+
+        static inline Constructor<LinkedHashMapJ, void(jint)> create;
+    };
+
     // Where native log lines go (android/.../NativeLogBridge.kt). `setNativeLevel` is native: init registers it.
     struct NativeLogBridgeJ : JavaClass<NativeLogBridgeJ> {
         static constexpr const char *name = "jnirt/NativeLogBridge";

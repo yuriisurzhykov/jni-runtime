@@ -37,3 +37,4 @@ jnirt_add_jvm_test(runtime_log_bridge_test log_bridge_test.cpp)
 
 jnirt_add_jvm_test(runtime_convert_test convert_test.cpp)
 jnirt_add_jvm_test(runtime_convert_array_test convert_array_test.cpp)
+jnirt_add_jvm_test(runtime_convert_collection_test convert_collection_test.cpp)

@@ -149,7 +149,9 @@ namespace jnirt {
                       "j<primitive>Array, and classes described with jnirt::JavaClass. For your own type add a row: "
                       "template<> struct jnirt::Convert<MyType> : jnirt::ConvertObject<MyType, MyTypeJ> { ... }");
 
-        // Only so that one mistake gives one error, not a second one about the descriptor.
+        // Only so that one mistake gives one error, not a second one about the descriptor or the members.
+        using Jni = jobject;
+        using Value = char;
         static constexpr auto descriptor = detail::text("?");
     };
 
@@ -385,7 +387,10 @@ namespace jnirt {
 
         [[noreturn]] void nullValue(const char *descriptor);
 
-        [[noreturn]] void nullElement(std::size_t index, const char *descriptor);
+        // Which part of a collection was null: the message says "element 3", "key of entry 3", "value of entry 3".
+        enum class Part { Element, Key, Value };
+
+        [[noreturn]] void nullPart(Part part, std::size_t index, const char *descriptor);
 
         // The parameter number `I` (from 0) of a native function, read from what JNI gave: null is checked here, so
         // the rows never see one.

@@ -34,9 +34,25 @@ namespace jnirt::detail {
                              ".\n  fix: use std::optional<...> if null is allowed.");
     }
 
-    void nullElement(std::size_t index, const char *descriptor) {
-        throwIllegalArgument("element " + std::to_string(index) + " is null, but the element type is a non-null " +
-                             descriptor + ".\n  fix: use std::optional<...> for the elements if null is allowed.");
+    void nullPart(Part part, std::size_t index, const char *descriptor) {
+        std::string where;
+        std::string kind;
+        switch (part) {
+            case Part::Element:
+                where = "element " + std::to_string(index);
+                kind = "the element type";
+                break;
+            case Part::Key:
+                where = "the key of entry " + std::to_string(index);
+                kind = "the key type";
+                break;
+            case Part::Value:
+                where = "the value of entry " + std::to_string(index);
+                kind = "the value type";
+                break;
+        }
+        throwIllegalArgument(where + " is null, but " + kind + " is a non-null " + descriptor +
+                             ".\n  fix: use std::optional<...> for it if null is allowed.");
     }
 
     std::string readString(JNIEnv *env, jstring text) {
@@ -92,6 +108,28 @@ namespace jnirt::detail {
         }
         return DirectBuffer(static_cast<std::byte *>(address), static_cast<std::size_t>(capacity));
     }
+
+    LocalRef<jobjectArray> collectionToArray(JNIEnv *env, jobject collection) {
+        Array<Object> items = CollectionJ::toArray(env, collection);
+        return copyOf(env, items.raw());
+    }
+
+    LocalRef<jobjectArray> mapEntries(JNIEnv *env, jobject map) {
+        LocalRef<jobject> entries = MapJ::entrySet(env, map);
+        return collectionToArray(env, entries.get());
+    }
+
+    LocalRef<jobject> entryKey(JNIEnv *env, jobject entry) { return MapEntryJ::getKey(env, entry); }
+
+    LocalRef<jobject> entryValue(JNIEnv *env, jobject entry) { return MapEntryJ::getValue(env, entry); }
+
+    LocalRef<jobject> newList(JNIEnv *env, jsize capacity) { return ArrayListJ::create(env, capacity); }
+
+    void listAdd(JNIEnv *env, jobject list, jobject element) { ArrayListJ::add(env, list, element); }
+
+    LocalRef<jobject> newMap(JNIEnv *env, jsize capacity) { return LinkedHashMapJ::create(env, capacity); }
+
+    void mapPut(JNIEnv *env, jobject map, jobject key, jobject value) { MapJ::put(env, map, key, value); }
 
     LocalRef<jobject> Box<jboolean>::box(JNIEnv *env, jboolean value) { return BooleanJ::valueOf(env, value); }
 
