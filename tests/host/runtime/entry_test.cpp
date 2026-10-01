@@ -35,6 +35,7 @@ namespace {
         static inline StaticMethod<ThrowerJ, jstring(jint)> probeStatic{"probeStatic"};
         static inline StaticMethod<ThrowerJ, jstring(jint)> probeObject{"probeObject"};
         static inline StaticMethod<ThrowerJ, jstring()> probeRawPending{"probeRawPending"};
+        static inline StaticMethod<ThrowerJ, jstring(jint)> probeCaller{"probeCaller"};
         static inline StaticMethod<ThrowerJ, jint(jint)> depth{"depth"};
     };
 
@@ -148,6 +149,15 @@ namespace {
         EXPECT_TRUE(line.rfind("java.lang.IllegalArgumentException: timeoutMs must be positive, got -1 (entry_test.cpp:", 0) == 0)
             << line;
         EXPECT_EQ(line.back(), ')');
+    }
+
+    // ADR-0002 §5: the Java stack of a programmer error ends at the Java caller of the native method, not in C++.
+    TEST_F(EntryTest, TheStackOfAProgrammerErrorPointsAtTheJavaCaller) {
+        for (jint kind: {0, 1}) {
+            std::string frames = text(env, ThrowerJ::probeCaller(env, kind).get());
+            EXPECT_EQ(frames.rfind("jnirt.test.Thrower.boom(Native Method) | jnirt.test.Thrower.probeCaller(Thrower.java:", 0), 0u)
+                << frames;
+        }
     }
 
     TEST_F(EntryTest, ACheckBecomesIllegalStateException) {
