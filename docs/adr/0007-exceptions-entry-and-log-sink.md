@@ -84,7 +84,7 @@ catch (const jnirt::JavaException&) { std::throw_with_nested(jnirt::Error(Errc::
 A message is converted from UTF-8 to a Java string with `NewString` (UTF-16), not `NewStringUTF`: that one takes
 *modified* UTF-8, and CheckJNI aborts on an emoji or an invalid byte, and those come from the outside world (a camera
 name, a server reply). An invalid sequence (a stray byte, a cut-off character, an overlong form, a surrogate) becomes one
-`U+FFFD` per sequence. The function is internal; P5 makes the public conversion from it.
+`U+FFFD` per sequence. The function is internal; P5 made the public conversion from it ([ADR-0008](0008-type-conversion.md) §3).
 
 ### 5. Kotlin API
 

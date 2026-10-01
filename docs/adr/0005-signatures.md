@@ -111,13 +111,14 @@ The table matches the exact C++ type. JNI types are `typedef`s, so:
 
 | Written       | Result                                                                                     |
 |---------------|--------------------------------------------------------------------------------------------|
-| `bool`        | does not compile: `jnirt: use jboolean, not bool`                                           |
+| `bool`        | `Z`, since ADR-0008 (it was a compile error until conversions existed)                       |
 | `char`, `char16_t`, `std::string`, any non-JNI type | does not compile: `jnirt: this C++ type has no JVM descriptor ...`   |
 | `long long`   | does not compile on 64-bit ABIs (there `jlong` is `long`); on armv7 it is `jlong`. Every ABI is built, so the error always surfaces |
 | `int`, `jsize`, `int64_t` | the same types as `jint` / `jlong`: correct                                      |
 | `uint8_t`, `uint16_t` | the same types as `jboolean` / `jchar`: **not detectable**. A wrong one fails the lookup at startup (§7) |
 
-Write only `j` types in signatures. Conversions (`bool` ↔ `jboolean`, `std::string` ↔ `jstring`) are P5.
+Write `j` types or the types of the conversion table. Conversions (`bool` ↔ `jboolean`, `std::string` ↔ `jstring`) are
+done in [ADR-0008](0008-type-conversion.md); the table moved there and `signature<F>` is built from it.
 
 ### 6. Native functions (rules for `registry`, P3.6)
 
@@ -169,8 +170,8 @@ every CI run.
 
 | What                                       | When / why                                                                 |
 |--------------------------------------------|----------------------------------------------------------------------------|
-| `jobjectArray`                             | P5: needs the element type (`Array<FrameJ>` → `[Lcom/acme/camera/Frame;`)   |
-| `std::string`, `bool`, collections, `ByteBuffer` | P5 conversions                                                       |
+| `jobjectArray`                             | done in P5 ([ADR-0008](0008-type-conversion.md) §7): `jnirt::Array<FrameJ>` → `[Lcom/acme/camera/Frame;` |
+| `std::string`, `bool`, collections, `ByteBuffer` | done in P5 (ADR-0008)                                                |
 | `jnirt::Object`, `JavaClass` definition    | done in P3.5 ([ADR-0006](0006-class-cache-and-registry.md))                 |
 | native-function rules (§6)                 | done in P3.6 (ADR-0006 §5)                                                  |
 | human-readable signatures in error messages (`onFrame(int, String)`) | not needed: the JVM form is what the developer greps for in `javap -s` |

@@ -218,7 +218,7 @@ class: R8 sees no Kotlin caller for the version and the method.
 | What                                           | Why / when                                                                               |
 |------------------------------------------------|------------------------------------------------------------------------------------------|
 | `CallNonvirtual*Method` (`super.foo()`)        | the one JNI call kind not covered; native code almost never needs it; on demand          |
-| `jobjectArray` in members                      | P5, with the element type (ADR-0005 §9)                                                  |
+| `jobjectArray` in members                      | done in P5: `jnirt::Array<C>` (ADR-0008 §7)                                              |
 | typed references (`LocalRef<CameraJ>`)         | compile-time object checks; the debug `IsInstanceOf` covers it for now                   |
 | lookup of a class by a different `ClassLoader` | `FindClass` in `JNI_OnLoad` sees the app loader; a library that needs another asks in P9 |
 | `entry()` around natives                       | done: ADR-0007                                                                           |
