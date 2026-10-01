@@ -239,9 +239,17 @@ rules for the border, and a hint for the log:
 | default parameter values                | one method with all parameters         | describe the full signature                       |
 
 When a method or native is not found, `init()` looks (only then) for a method of the same class with a mangled name
-(`name-...`, `name$...`) and for the same method in `Class$Companion`, and adds a line to the problem. Example:
-`Camera.open(J)Z not found. Found open-Ab3xQ9z(J)Z: a value class parameter changes the method name. Take Long on the
-border.` The cost is paid only on a startup error.
+(`name-...`, `name$...`, and `name$default` for default parameter values) and for the same method in
+`Class$Companion`, and adds a line to the problem. The methods are listed with `Class.getDeclaredMethods()`, which is
+reflection, so it runs only when a lookup has failed. Example:
+
+```
+method com.acme.Camera.open (J)Z: not found
+  hint: the class has `open-Ab3xQ9z`: Kotlin gives a function with a value class (or UInt, ULong...) in its signature a
+  mangled name. Take the underlying type (Int, Long) on the border and wrap it in Kotlin.
+```
+
+The hints are for methods and natives; fields are not looked at. The cost is paid only on a startup error.
 
 ### 10. Cost of crossing
 
@@ -293,6 +301,6 @@ of the roadmap stays: coarse calls.
 | arrays: copy, piece, bad range, `withCritical` (changes, exception inside, logs go to logcat) | `convert_array_test`                |
 | direct buffer: direct, not direct, null, capacity                                      | `convert_array_test`                      |
 | `List`, `Map`, `Frame`, `Array<Frame>`: 100 000 elements, local references stay flat    | `convert_collection_test`                 |
-| what must not compile (unsigned, `uint8_t` vector, raw element, optional raw, no row)  | `compile_fail/` through `try_compile`     |
-| startup hints: companion, `$` and `-` names                                             | `registry_test`                           |
+| what must not compile (unsigned, `uint8_t` vector, raw element, optional raw, no row)  | `compile_fail/`: one `ctest` test per file; the compiler runs with `-fsyntax-only` and the output must contain the `// EXPECT:` text (not `try_compile`: a test shows each case on its own, and configure stays fast) |
+| startup hints: companion, `$` and `-` names, `$default`                                 | `kotlin_hints_test` (the matcher without a JVM, the startup against `KotlinShapes.java`) |
 | cost of crossing (printed, no thresholds)                                              | `convert_bench` (not in `ctest`)          |

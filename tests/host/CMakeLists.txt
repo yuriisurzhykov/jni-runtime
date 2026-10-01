@@ -33,3 +33,16 @@ add_custom_target(jnirt_test_classes DEPENDS ${JNIRT_TEST_CLASSES_DIR}/.compiled
 
 add_subdirectory(support)
 add_subdirectory(runtime)
+
+# What must not compile (ADR-0008 "Tests"): one ctest test per file in compile_fail/. Each file has a `// EXPECT: <text>` line
+# with the message of jnirt's static_assert that must appear. The compiler is run with -fsyntax-only by compile_fail.cmake.
+file(GLOB JNIRT_COMPILE_FAIL_CASES CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/compile_fail/*.cpp)
+foreach (case IN LISTS JNIRT_COMPILE_FAIL_CASES)
+    get_filename_component(case_name ${case} NAME_WE)
+    add_test(NAME CompileFail.${case_name}
+            COMMAND ${CMAKE_COMMAND}
+            -DCXX=${CMAKE_CXX_COMPILER}
+            "-DINCLUDES=$<JOIN:$<TARGET_PROPERTY:jnirt_runtime,INTERFACE_INCLUDE_DIRECTORIES>,|>|$<JOIN:$<TARGET_PROPERTY:jnirt_support,INTERFACE_INCLUDE_DIRECTORIES>,|>"
+            -DSOURCE=${case}
+            -P ${CMAKE_CURRENT_SOURCE_DIR}/compile_fail.cmake)
+endforeach ()

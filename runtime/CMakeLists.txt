@@ -7,6 +7,7 @@ add_library(jnirt_runtime STATIC
         src/env.cpp
         src/exception.cpp
         src/init.cpp
+        src/kotlin_hints.cpp
         src/log_forward.cpp
         src/ref.cpp
         src/registry.cpp

@@ -9,6 +9,7 @@
 
 #include "class_cache_internal.h"
 #include "critical.h"
+#include "kotlin_hints.h"
 
 #include <algorithm>
 #include <cstring>
@@ -124,13 +125,20 @@ namespace jnirt::detail {
             problems.push_back(std::move(text));
         }
 
+        // Only a method can have a Kotlin-mangled name or live in a companion object.
+        std::string kotlinHint(JNIEnv *env, const ClassInfo &info, const Member &member) {
+            const std::string kind = member.kind();
+            if (kind != "method" && kind != "static method") return {};
+            return hintForMissingMethod(env, info.cls, info.name, member.name(), member.descriptor());
+        }
+
         void resolveMembers(JNIEnv *env, ClassInfo &info, Problems &problems) {
             for (Member *member: info.members) {
                 switch (member->resolve(env, info.cls)) {
                     case Member::Lookup::Found:
                         break;
                     case Member::Lookup::Missing:
-                        problems.push_back(describeMember(*member) + ": not found");
+                        problems.push_back(describeMember(*member) + ": not found" + kotlinHint(env, info, *member));
                         break;
                     case Member::Lookup::OtherKind:
                         problems.push_back(describeMember(*member) + ": not found\n  hint: " + member->otherKindHint());
