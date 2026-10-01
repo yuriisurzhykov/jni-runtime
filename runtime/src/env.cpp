@@ -11,6 +11,7 @@
 #include <jnirt/runtime/vm.h>
 #include <jnirt/support/assert.h>
 
+#include "ref_internal.h"
 #include "thread_name.h"
 #include "vm_internal.h"
 
