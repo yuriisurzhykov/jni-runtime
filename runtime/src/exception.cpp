@@ -6,21 +6,15 @@
 #include <jnirt/runtime/exception.h>
 
 #include "class_cache_internal.h"
+#include "runtime_classes.h"
 
 #include <cstring>
 #include <utility>
 
 namespace jnirt {
+    using detail::ThrowableJ;
+
     namespace {
-        // The two members the runtime needs to put a Java exception into words. Described like any user class, so
-        // the lookup, the error messages and the debug checks are the ones the user's classes get.
-        struct ThrowableJ : JavaClass<ThrowableJ> {
-            static constexpr const char *name = "java/lang/Throwable";
-
-            static inline Method<ThrowableJ, jstring()> toString{"toString"};
-            static inline Method<ThrowableJ, ThrowableJ()> getCause{"getCause"};
-        };
-
         // A static initializer that failed is reported by FindClass as ExceptionInInitializerError, whose
         // toString() says nothing; the interesting part is its cause.
         constexpr const char *kInitializerError = "java.lang.ExceptionInInitializerError";

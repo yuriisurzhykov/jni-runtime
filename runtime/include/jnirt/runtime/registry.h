@@ -18,7 +18,8 @@
 //
 // A native function is `R fn(JNIEnv *env, jobject thiz, params...)` for an instance method, or with `jclass` as the
 // second parameter for a static one (Kotlin: @JvmStatic). The Java signature is the one of `R(params...)`; the
-// first two parameters are never part of it.
+// first two parameters are never part of it. What is registered is `fn` inside the try/catch of entry.h: whatever
+// `fn` throws arrives in Kotlin as a Java exception, never as a crash.
 //
 // init() returns JNI_VERSION_1_6 or JNI_ERR. On JNI_ERR the log holds every problem found, not only the first:
 // a class or member that does not exist, a native that Kotlin does not declare (or declares static), an
@@ -31,6 +32,7 @@
 
 #pragma once
 #include <jnirt/runtime/class_cache.h>
+#include <jnirt/runtime/entry.h>
 
 #include <cstddef>
 #include <initializer_list>
@@ -80,6 +82,12 @@ namespace jnirt {
             using Params = std::tuple<P...>;
             using Signature = R(P...);   // what Java sees: no JNIEnv*, no this
             static constexpr bool isStatic = std::is_same_v<Self, jclass>;
+
+            // The address that goes to RegisterNatives: Fn inside the try/catch of entry.h.
+            template<auto Fn>
+            static void *entryPoint() {
+                return reinterpret_cast<void *>(&entryCall<Fn, R, Self, P...>);
+            }
         };
 
         template<class R, class Self, class... P>
@@ -162,7 +170,7 @@ namespace jnirt {
             using Shape = detail::NativeShape<decltype(Fn)>;
             using JavaFunction = typename detail::JavaSignature<Shape, Java>::type;
             registry_.addNative(index_, detail::NativeEntry{
-                                    name, jnirt::signature<JavaFunction>, reinterpret_cast<void *>(Fn),
+                                    name, jnirt::signature<JavaFunction>, Shape::template entryPoint<Fn>(),
                                     Shape::isStatic
                                 });
             return *this;

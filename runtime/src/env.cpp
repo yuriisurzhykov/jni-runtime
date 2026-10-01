@@ -11,6 +11,7 @@
 #include <jnirt/runtime/vm.h>
 #include <jnirt/support/assert.h>
 
+#include "class_cache_internal.h"
 #include "ref_internal.h"
 #include "thread_name.h"
 #include "vm_internal.h"
@@ -89,6 +90,16 @@ namespace jnirt {
                             static_cast<int>(status));
         }
     }
+
+    namespace detail {
+        JNIEnv *currentEnvOrNull() noexcept {
+            JavaVM *jvm = vmOrNull();
+            if (jvm == nullptr) return nullptr;
+            jint status = JNI_OK;
+            JNIEnv *current = getEnv(jvm, &status);
+            return status == JNI_OK ? current : nullptr;
+        }
+    } // namespace detail
 
     void detachCurrentThread() {
         auto *attachedVm = static_cast<JavaVM *>(pthread_getspecific(attachedByUsKey()));
