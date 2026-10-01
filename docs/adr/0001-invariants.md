@@ -92,7 +92,7 @@ Draft
 ## 7. Types and signatures
 
 - 7.1 Strings cross the boundary as **UTF-16** (`GetStringChars`), not modified UTF-8.
-- 7.2 Signatures are **generated at compile time** from C++ types, never written by hand.
+- 7.2 Signatures are **generated at compile time** from C++ types, never written by hand. *Details in ADR-0005.*
 - 7.3 Large data uses direct `ByteBuffer`. Boundary crossings are coarse-grained.
 - 7.4 Natives are registered with `RegisterNatives`, not by mangled names.
 
