@@ -11,7 +11,7 @@ P0 Design ─► P1 Build skeleton ─► P2 support (log ✔, error ✔, assert
                                         │
                                         ▼
                                P3 Runtime foundation
-                          (vm/env, refs, signatures, cache, registry)
+                          (vm/env ✔, refs ✔, signatures ✔, cache ✔, registry ✔)
                                         │
                                         ▼
                            P4 Exceptions + entry() + Java log sink ✔
