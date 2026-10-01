@@ -2,12 +2,12 @@
 // native functions, checks the Kotlin side. See docs/adr/0006-class-cache-and-registry.md and
 // docs/learning/class-cache-and-registry-by-example.md.
 //
-//   jboolean nativeOpen(JNIEnv *env, jobject thiz, jstring url);
+//   bool nativeOpen(JNIEnv *env, jobject thiz, const std::string &url);
 //   void nativeSubscribe(JNIEnv *env, jobject thiz, jobject listener);
 //
 //   void register_camera(jnirt::Registry &r) {
 //       r.add<CameraJ>()
-//        .native<&nativeOpen>("nativeOpen")                                  // jboolean(jstring), from the function
+//        .native<&nativeOpen>("nativeOpen")                                  // bool(std::string): (String)Boolean
 //        .native<&nativeSubscribe, void(ListenerJ)>("nativeSubscribe");      // a jobject needs its Java class
 //       r.add<ListenerJ>();                                                  // no natives, but its methods are called
 //   }
@@ -17,9 +17,10 @@
 //   }
 //
 // A native function is `R fn(JNIEnv *env, jobject thiz, params...)` for an instance method, or with `jclass` as the
-// second parameter for a static one (Kotlin: @JvmStatic). The Java signature is the one of `R(params...)`; the
-// first two parameters are never part of it. What is registered is `fn` inside the try/catch of entry.h: whatever
-// `fn` throws arrives in Kotlin as a Java exception, never as a crash.
+// second parameter for a static one (Kotlin: @JvmStatic). The types are those of convert.h (jint, bool, std::string,
+// std::optional<T>, std::vector<T>, your own types). The Java signature is the one of `R(params...)`; the first two
+// parameters are never part of it. What is registered is `fn` inside the try/catch of entry.h, with every parameter
+// and the result converted: whatever `fn` throws arrives in Kotlin as a Java exception, never as a crash.
 //
 // init() returns JNI_VERSION_1_6 or JNI_ERR. On JNI_ERR the log holds every problem found, not only the first:
 // a class or member that does not exist, a native that Kotlin does not declare (or declares static), an
@@ -32,6 +33,7 @@
 
 #pragma once
 #include <jnirt/runtime/class_cache.h>
+#include <jnirt/runtime/convert.h>
 #include <jnirt/runtime/entry.h>
 
 #include <cstddef>
@@ -89,10 +91,11 @@ namespace jnirt {
             using Signature = ReturnType(Args...); // what Java sees: no JNIEnv*, no this
             static constexpr bool isStatic = std::is_same_v<Self, jclass>;
 
-            // The address that goes to RegisterNatives: Fn inside the try/catch of entry.h.
+            // The address that goes to RegisterNatives: Fn inside the try/catch of entry.h, with its parameters and
+            // result converted.
             template<auto Func>
             static void *entryPoint() {
-                return reinterpret_cast<void *>(&entryCall<Func, ReturnType, Self, Args...>);
+                return reinterpret_cast<void *>(&Entry<Func, ReturnType, Self, Args...>::call);
             }
         };
 
@@ -105,7 +108,15 @@ namespace jnirt {
 
         template<class R, class... P>
         struct HasJobject<R(P...)>
-                : std::bool_constant<std::is_same_v<R, jobject> || (std::is_same_v<P, jobject> || ...)> {
+                : std::bool_constant<std::is_same_v<Plain<R>, jobject> || (std::is_same_v<Plain<P>, jobject> || ...)> {
+        };
+
+        template<class Tuple>
+        struct PlainTuple;
+
+        template<class... T>
+        struct PlainTuple<std::tuple<T...> > {
+            using type = std::tuple<Plain<T>...>;
         };
 
         // The Java signature of a native: given explicitly, and checked against fn, or taken from fn.
@@ -130,10 +141,10 @@ namespace jnirt {
             static_assert(sizeof...(PJ) == std::tuple_size_v<typename Shape::Params>,
                           "jnirt: native<&fn, J>: J and fn have a different number of parameters (fn's JNIEnv* and "
                           "jobject / jclass are not counted)");
-            static_assert(std::is_same_v<std::tuple<JniForm<PJ>...>, typename Shape::Params>,
+            static_assert(std::is_same_v<std::tuple<ValueOf<PJ>...>, typename PlainTuple<typename Shape::Params>::type>,
                           "jnirt: native<&fn, J>: a parameter of J does not match fn. A described class is a "
                           "jobject in fn, every other type is the same on both sides");
-            static_assert(std::is_same_v<JniForm<RJ>, typename Shape::Result>,
+            static_assert(std::is_same_v<ValueOf<RJ>, Plain<typename Shape::Result> >,
                           "jnirt: native<&fn, J>: the result of J does not match fn. A described class is a "
                           "jobject in fn, every other type is the same on both sides");
             using type = RJ(PJ...);

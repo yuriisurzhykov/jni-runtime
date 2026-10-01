@@ -5,6 +5,7 @@
 
 #include <jnirt/runtime/class_cache.h>
 #include <jnirt/support/assert.h>
+#include <jnirt/support/error.h>
 
 #include "class_cache_internal.h"
 
@@ -59,6 +60,13 @@ namespace jnirt::detail {
                          describeMember(member).c_str());
         }
     } // namespace
+
+    void resultIsNull(const Member &member) {
+        // No file and line: the place would be a line of jnirt, not of the caller (entry.cpp leaves it out).
+        throw IllegalState(describeMember(member) + ": returned null, but the C++ type of the result has no null.\n"
+                           "  fix: declare the result as std::optional<...> (Kotlin: String?).",
+                           "", 0);
+    }
 
     void beforeInstanceCall([[maybe_unused]] JNIEnv *env, jobject self, const Member &member) {
         JNIRT_REQUIRE(self != nullptr, "%s: the object is null.", describeMember(member).c_str());

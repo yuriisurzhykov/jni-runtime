@@ -4,7 +4,7 @@
 // the bottom check the table against a real JVM (JNI_CreateJavaVM, -Xcheck:jni): lookups of JDK members with
 // generated signatures must succeed.
 //
-// What must NOT compile (bool, jobject, std::string, long long on 64-bit, "com.acme.Camera" as a name) is checked by
+// What must NOT compile (jobject, unsigned types, long long on 64-bit, "com.acme.Camera" as a name) is checked by
 // hand; the compiler output is in docs/learning/signatures-by-example.md.
 
 #include <jnirt/runtime/signature.h>

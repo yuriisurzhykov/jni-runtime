@@ -34,3 +34,5 @@ target_link_libraries(runtime_domains_test PRIVATE jnirt::runtime)
 target_include_directories(runtime_domains_test PRIVATE ${PROJECT_SOURCE_DIR}/runtime/src)
 
 jnirt_add_jvm_test(runtime_log_bridge_test log_bridge_test.cpp)
+
+jnirt_add_jvm_test(runtime_convert_test convert_test.cpp)

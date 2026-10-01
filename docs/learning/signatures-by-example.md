@@ -61,7 +61,8 @@ about.
 | any other class or interface | a description, see §3 | `Lcom/acme/...;`   |
 | `Any`                     | `jnirt::Object` (P3.5) | `Ljava/lang/Object;` |
 
-The rule: **only `j` types and descriptions.** Not `bool`, not `int64_t` "because it is the same", not `jobject`.
+The rule: **`j` types, descriptions, and the types the conversion table knows** (`bool`, `std::string`, `std::optional<T>`, ... see
+[type-conversion-by-example.md](type-conversion-by-example.md)). Not `int64_t` "because it is the same", not `jobject`.
 
 ## 3. Your own class
 
@@ -133,12 +134,12 @@ Real compiler output (gcc; clang says the same and also shows the type):
 
 | You wrote                          | You get                                                                |
 |------------------------------------|------------------------------------------------------------------------|
-| `void(bool)`                       | `jnirt: use jboolean, not bool`                                        |
+| `void(unsigned)`                   | `jnirt: Java has no unsigned numbers (size_t, uint32_t, uint64_t, unsigned). Take jint / jlong and check the range yourself.` |
 | `void(jobject)`                    | `jnirt: jobject does not say which Java class. ...` (§4)               |
-| `void(std::string)`                | `jnirt: this C++ type has no JVM descriptor. Supported: void, jboolean, ...` and the type: `Descriptor<std::__cxx11::basic_string<char>, void>` |
-| `void(long long)`                  | the same, with `Descriptor<long long int, void>`                        |
+| `void(std::vector<int>)` before P5.2 | `jnirt: this C++ type has no Java type. Supported: void, bool, the JNI numbers ...` and how to add a row |
+| `void(long long)`                  | `jnirt: this integer type is not one of the JNI types. Write jint, jlong, jshort, jbyte; ...` |
 | `name = "com.acme.Camera"`         | `jnirt: JavaClass name must be in JVM form: "com/acme/Camera" ...`     |
-| `struct B : JavaClass<A>` (wrong argument) | `jnirt: this C++ type has no JVM descriptor ...` with `Descriptor<B, void>` |
+| `struct B : JavaClass<A>` (wrong argument) | `jnirt: this C++ type has no JVM descriptor ...` with the type `B` named by the compiler |
 | `signature<jint>` (not a function) | `jnirt: signature<F> needs a function type, like void(jint, jstring)` |
 
 Why `long long` fails although it is 64 bits like `jlong`: on arm64 and x86_64 `jlong` is `long`, and for C++
@@ -216,7 +217,7 @@ everything else must be the same type). Leave out `void(ListenerJ)`, and you get
 
 | Mistake                                         | What happens                                   | Fix                                         |
 |-------------------------------------------------|------------------------------------------------|---------------------------------------------|
-| `bool` in a signature                           | does not compile                               | `jboolean`                                  |
+| `unsigned` / `size_t` in a signature            | does not compile                               | `jint` / `jlong`, check the range yourself  |
 | `jobject` for a Kotlin parameter of type `Listener` | does not compile                           | describe `ListenerJ`, write `void(ListenerJ)` |
 | `name = "com.acme.Camera"`                      | does not compile                               | `"com/acme/Camera"`                         |
 | `name = "com/acme/Camera.State"` for a nested class | lookup fails at startup                    | `"com/acme/Camera$State"`                   |
