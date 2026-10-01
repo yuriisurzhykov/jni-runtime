@@ -169,6 +169,9 @@ deadlock under stress.
 - CheckJNI, ASan/HWASan runs, TSan on host.
 - Symbol handling: keep debug symbols in CI artifacts for tombstone symbolication.
 - Verify: only `JNI_OnLoad` exported, one `c++_shared`, 16 KB alignment.
+- **Deferred from P4 (D9): native backtrace in the log when `entry()` catches an error.** By the time of `catch` the stack
+  is already unwound, so a real backtrace has to be captured at `throw` time (inside `jnirt::Error` / `JNIRT_REQUIRE`
+  / `JNIRT_CHECK`), for example with `_Unwind_Backtrace` plus symbol handling. P4 only adds `(file:line)` to the message.
 
 **Exit criteria:** the P3–P7 test suites pass on the minified build.
 
