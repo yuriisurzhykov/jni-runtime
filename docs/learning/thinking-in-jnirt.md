@@ -7,7 +7,8 @@ explicitly.
 
 Related: [ADR-0001](../adr/0001-invariants.md) (invariants), [ADR-0002](../adr/0002-errors-and-asserts.md) (errors),
 [ADR-0003](../adr/0003-vm-and-env.md) and [vm-env-by-example](vm-env-by-example.md) (threads),
-[ADR-0004](../adr/0004-references.md) (references).
+[ADR-0004](../adr/0004-references.md) (references), [ADR-0005](../adr/0005-signatures.md) and
+[signatures-by-example](signatures-by-example.md) (signatures).
 
 ---
 
@@ -125,6 +126,7 @@ passed to a JNI call).
 - Objects returned to Kotlin go through `release()`.
 - No `JNIEnv*` in fields, no `LocalRef` moved to another thread.
 - No `FindClass` / `GetMethodID` outside startup.
+- No hand-written signature strings; no `jobject` or `bool` in a signature type.
 - Each failure is classified: caller's mistake, outside world, or our bug.
 
 ## Common mistakes
