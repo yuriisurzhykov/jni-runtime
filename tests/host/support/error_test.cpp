@@ -3,6 +3,7 @@
 #include <gtest/gtest.h>
 
 #include <exception>
+#include <string>
 #include <type_traits>
 
 namespace testlib {
@@ -92,4 +93,27 @@ TEST(ContractViolation, ArgumentAndStateAreDifferentTypes) {
     static_assert(!std::is_base_of<jnirt::IllegalArgument, jnirt::IllegalState>::value, "");
     static_assert(!std::is_base_of<jnirt::IllegalState, jnirt::IllegalArgument>::value, "");
     static_assert(std::is_nothrow_copy_constructible<jnirt::IllegalArgument>::value, "");
+}
+
+// ---- Domains are recorded when the library is loaded (jnirt::init checks them) ----
+
+namespace {
+    bool declared(const char *domain, const char *enumName) {
+        for (const auto &d: jnirt::detail::declaredDomains()) {
+            if (std::string(d.domain) == domain && std::string(d.enumName) == enumName) return true;
+        }
+        return false;
+    }
+}
+
+TEST(ErrorDomain, EveryDeclarationIsRecordedWithItsEnumName) {
+    EXPECT_TRUE(declared("jnirt", "jnirt::Errc"));
+    EXPECT_TRUE(declared("testlib", "testlib::Errc"));
+    EXPECT_TRUE(declared("otherlib", "otherlib::Errc"));
+}
+
+TEST(ErrorDomain, DeclaringThePairAgainChangesNothing) {
+    const auto before = jnirt::detail::declaredDomains().size();
+    EXPECT_TRUE(jnirt::detail::declareDomain("testlib", "testlib::Errc"));
+    EXPECT_EQ(jnirt::detail::declaredDomains().size(), before);
 }
