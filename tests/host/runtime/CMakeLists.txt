@@ -36,3 +36,4 @@ target_include_directories(runtime_domains_test PRIVATE ${PROJECT_SOURCE_DIR}/ru
 jnirt_add_jvm_test(runtime_log_bridge_test log_bridge_test.cpp)
 
 jnirt_add_jvm_test(runtime_convert_test convert_test.cpp)
+jnirt_add_jvm_test(runtime_convert_array_test convert_array_test.cpp)

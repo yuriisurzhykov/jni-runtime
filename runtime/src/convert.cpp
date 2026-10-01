@@ -10,6 +10,7 @@
 #include "runtime_classes.h"
 #include "utf.h"
 
+#include <cstddef>
 #include <cstdint>
 #include <memory>
 #include <string>
@@ -70,6 +71,27 @@ namespace jnirt::detail {
     }
 
     LocalRef<jstring> makeString(JNIEnv *env, std::string_view utf8) { return makeString16(env, utf8ToUtf16(utf8)); }
+
+    jsize arraySize(std::size_t count) {
+        if (count > static_cast<std::size_t>(INT32_MAX)) {
+            throwIllegalArgument("the array is too long for Java (" + std::to_string(count) + " elements)");
+        }
+        return static_cast<jsize>(count);
+    }
+
+    void requireArray(jarray array) {
+        if (array == nullptr) throwIllegalArgument("the Java array is null");
+    }
+
+    DirectBuffer readDirectBuffer(JNIEnv *env, jobject buffer) {
+        void *address = env->GetDirectBufferAddress(buffer);
+        jlong capacity = env->GetDirectBufferCapacity(buffer);
+        if (address == nullptr || capacity < 0) {
+            throwIllegalArgument("the ByteBuffer is not direct (or this JVM can not give its memory).\n"
+                                 "  fix: create it with ByteBuffer.allocateDirect(n) on the Kotlin side.");
+        }
+        return DirectBuffer(static_cast<std::byte *>(address), static_cast<std::size_t>(capacity));
+    }
 
     LocalRef<jobject> Box<jboolean>::box(JNIEnv *env, jboolean value) { return BooleanJ::valueOf(env, value); }
 

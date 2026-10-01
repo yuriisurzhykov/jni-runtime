@@ -122,6 +122,7 @@ namespace jnirt {
         using Jni = std::conditional_t<boxed, jobject, typename Inner::Jni>;
         using Value = std::optional<T>;
         static constexpr bool acceptsNull = true;
+        static constexpr bool borrowsFromJava = detail::BorrowFlag<Inner>::value;
         static constexpr auto descriptor = detail::optionalDescriptor<T>();
 
         static Value fromJava(JNIEnv *env, Jni value) {

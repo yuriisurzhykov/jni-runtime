@@ -21,5 +21,6 @@
 #include <jnirt/runtime/detail/convert_core.h>
 #include <jnirt/runtime/detail/convert_string.h>
 #include <jnirt/runtime/detail/convert_optional.h>
+#include <jnirt/runtime/detail/convert_array.h>
 
 #endif //JNI_RUNTIME_CONVERT_H

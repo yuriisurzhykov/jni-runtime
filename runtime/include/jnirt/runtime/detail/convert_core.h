@@ -12,6 +12,8 @@
 //   static ... toJava(JNIEnv *, const Value &)                 Jni for a number, LocalRef<Jni> for a reference
 //   static constexpr bool handle      (optional) true: the value is a raw JNI reference, not converted
 //   static constexpr bool acceptsNull (optional) true: fromJava gets null (std::optional)
+//   static constexpr bool borrowsFromJava (optional) true: the value points into the Java object (DirectBuffer), so
+//                                     it is good for a native parameter, not for the result of a call
 //
 // Created by Yurii Surzhykov on 10/1/26.
 
@@ -84,6 +86,14 @@ namespace jnirt {
 
         template<class Row>
         struct NullFlag<Row, std::void_t<decltype(Row::acceptsNull)> > : std::bool_constant<Row::acceptsNull> {
+        };
+
+        template<class Row, class = void>
+        struct BorrowFlag : std::false_type {
+        };
+
+        template<class Row>
+        struct BorrowFlag<Row, std::void_t<decltype(Row::borrowsFromJava)> > : std::bool_constant<Row::borrowsFromJava> {
         };
 
         template<class Row, class = void>

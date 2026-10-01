@@ -8,6 +8,7 @@
 #include <jnirt/support/error.h>
 
 #include "class_cache_internal.h"
+#include "critical.h"
 
 #include <algorithm>
 #include <cstring>
@@ -50,6 +51,15 @@ namespace jnirt::detail {
             return text + " " + member.descriptor();
         }
 
+        [[maybe_unused]] void assertNotInsideCritical(const Member &member) {
+            JNIRT_ASSERT(!insideCritical(),
+                         "%s was called inside withCritical.\n"
+                         "  why: between GetPrimitiveArrayCritical and its release no JNI call is allowed; the "
+                         "garbage collector is held and a JNI call can deadlock the process.\n"
+                         "  fix: call Java before or after withCritical, outside the lambda.",
+                         describeMember(member).c_str());
+        }
+
         [[maybe_unused]] void assertResolved(const Member &member) {
             JNIRT_ASSERT(member.resolved(),
                          "%s was used before jnirt::init() found it, or its lookup failed.\n"
@@ -71,6 +81,7 @@ namespace jnirt::detail {
     void beforeInstanceCall([[maybe_unused]] JNIEnv *env, jobject self, const Member &member) {
         JNIRT_REQUIRE(self != nullptr, "%s: the object is null.", describeMember(member).c_str());
 #ifndef NDEBUG
+        assertNotInsideCritical(member);
         assertResolved(member);
         JNIRT_ASSERT(env->IsInstanceOf(self, member.owner().cls),
                      "%s: the object is not an instance of %s.\n"
@@ -82,6 +93,7 @@ namespace jnirt::detail {
 
     void beforeStaticCall([[maybe_unused]] const Member &member) {
 #ifndef NDEBUG
+        assertNotInsideCritical(member);
         assertResolved(member);
 #endif
     }

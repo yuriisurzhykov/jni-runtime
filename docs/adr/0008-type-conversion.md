@@ -132,8 +132,15 @@ Four ways, from simple to fast:
   lambda throws. The lambda gets a pointer and a length and **no `env`**, so JNI is not called by accident. Inside, no
   JNI and no blocking (the garbage collector may be held). Debug builds assert if `jnirt::env()` or a call of class_cache
   is made inside. `withCriticalRead` (read only, no copy back) exists for the common read-only pass.
+  The lambda may return a value. If it throws, the array is released with what was written so far, and the exception
+  goes on. `withCritical` does not nest: the second array would need `GetArrayLength` inside the first region, which JNI
+  does not allow (`-Xcheck:jni` warns). Debug builds assert; copy a piece with `readArray` instead.
 - **Logging inside `withCritical`:** the log forwarder of ADR-0007 §7 calls Java, which is forbidden there. A thread flag
   set by `withCritical` makes the forwarder decline, and the line goes to logcat. It is a fifth case of ADR-0007 §7.
+- **A buffer for a handle.** `readArray` / `writeArray` take the array handle, so the handle says what the Java array
+  is: a `jbyteArray` accepts a `jbyte`, `std::byte` or `uint8_t` buffer, a `jbooleanArray` a `jboolean` or `bool` one, a
+  `jcharArray` a `jchar` or `char16_t` one; any other mismatch (a `jlong` buffer for a `jintArray`) does not compile.
+  The ambiguity below is only about `std::vector<uint8_t>`, which has no handle.
 - **Bytes.** `uint8_t` is the same type as `jboolean`, so `std::vector<uint8_t>` would silently be a `BooleanArray`.
   It does not compile: `uint8_t is jboolean; ByteArray is std::vector<std::byte> (or jbyte), BooleanArray is
   std::vector<bool>`.
@@ -155,6 +162,12 @@ Kotlin allocates `ByteBuffer.allocateDirect(n)` once and passes it many times; n
   as offset and length parameters.
 - Only from Java to C++. `NewDirectByteBuffer` over memory that native code owns is an ownership question (Kotlin could
   keep the buffer longer than the C++ memory lives): P6.
+- **Only as a native parameter.** The memory belongs to the Java object, and the object is alive during the native call.
+  The result of a call into Java (or a field) can be a buffer that nothing else holds: the local reference of the result
+  is deleted when the call returns, the buffer may be collected, and the pointer dangles. So `Method<C, DirectBuffer()>`
+  and `Field<C, DirectBuffer>` do not compile (the row says `borrowsFromJava`, §2). To use such a buffer, keep the
+  reference and ask by hand: `jnirt::fromJava<DirectBuffer>(env, ref.get())`; `ref` must outlive the pointer.
+- `data()` is a `std::byte *`; `as<T>()` gives the memory as `T *` (`uint8_t` pixels, `float` samples).
 
 ### 7. Objects, collections and your own types
 

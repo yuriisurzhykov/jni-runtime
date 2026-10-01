@@ -141,6 +141,10 @@ namespace jnirt {
         template<class R>
         auto makeResult(JNIEnv *env, CallType<R> raw, const Member &member) {
             using Row = RowOf<R>;
+            static_assert(!BorrowFlag<Row>::value,
+                          "jnirt: this value points into a Java object that may be collected as soon as the "
+                          "local reference of the result is gone (a DirectBuffer). Take it as a native parameter, "
+                          "or keep the reference yourself and call jnirt::fromJava<DirectBuffer>(env, ref.get()).");
             if constexpr (!std::is_pointer_v<typename Row::Jni>) {
                 return Row::fromJava(env, raw);
             } else {

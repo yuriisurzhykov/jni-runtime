@@ -1,6 +1,7 @@
 add_library(jnirt_runtime STATIC
         src/class_cache.cpp
         src/convert.cpp
+        src/critical.cpp
         src/domains.cpp
         src/entry.cpp
         src/env.cpp

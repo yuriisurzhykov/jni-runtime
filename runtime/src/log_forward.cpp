@@ -10,6 +10,7 @@
 #include <jnirt/support/logging/macros.h>
 
 #include "class_cache_internal.h"
+#include "critical.h"
 #include "registry_internal.h"
 #include "runtime_classes.h"
 #include "utf.h"
@@ -46,6 +47,7 @@ namespace jnirt::detail {
         thread_local bool forwarding = false;
         if (forwarding) return false;
 
+        if (insideCritical()) return false; // withCritical: no JNI call allowed, the line goes to logcat
         JNIEnv *env = currentEnvOrNull();
         if (env == nullptr) return false; // a thread the JVM does not know: a log line does not attach it
         if (env->ExceptionCheck()) return false; // nothing may be called with a Java exception pending

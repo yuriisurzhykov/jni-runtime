@@ -152,7 +152,9 @@ LOGI(...) -> format -> forwarder set? --yes, it took the line--> done
      log line could kill the process. Threads whose logs matter call `jnirt::env()` themselves;
   2. a Java exception is pending (no Java calls are allowed);
   3. a line is written while one is being forwarded (the receiver logs into native, or the forwarder reports a failure);
-  4. the receiver threw: the exception is cleared, a warning says so, the original line goes to logcat.
+  4. the receiver threw: the exception is cleared, a warning says so, the original line goes to logcat;
+  5. the thread is inside `withCritical` (ADR-0008 §5): between `GetPrimitiveArrayCritical` and its release no JNI call
+     is allowed, so the line goes to logcat. A thread-local depth counter, set by `withCritical`, says so.
 - `JNIRT_ASSERT` / `JNIRT_FATAL` write straight to logcat and never use the forwarder: after a broken invariant the heap and
   the JVM can not be trusted, and the forwarder calls Java.
 - `NativeLogBridge.setNativeLevel(priority)` is a native method that `init()` registers itself; it sets the one level of
