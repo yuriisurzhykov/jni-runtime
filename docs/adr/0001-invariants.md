@@ -79,9 +79,8 @@ Draft
   catches everything.
 - 6.2 **Programmer error:** `IllegalArgumentException` / `IllegalStateException`. In debug builds, log and `abort`.
   *Superseded by ADR-0002: these are thrown in debug and release alike; only invariant errors crash.*
-- 6.3 **Recoverable error:** native throws a dedicated exception from a single hierarchy (`NativeException` with an
-  error
-  code). Native never constructs Kotlin result objects.
+- 6.3 **Recoverable error:** native throws `jnirt::Error` (a domain and a code); Kotlin receives one class,
+  `NativeException(domain, code)`, without subclasses (ADR-0002 §3). Native never constructs Kotlin result objects.
 - 6.4 The **public Kotlin API** of a library may wrap these exceptions into the project's result type. One error is
   reported in one way only: never both a result and an exception.
 - 6.5 With a pending Java exception, only the minimal allowed set of JNI calls is made: check, clear, or return.

@@ -88,7 +88,7 @@ try {
 ```
 
 The pending Java exception is already cleared when you catch this, so the next JNI call is legal. If you do not catch
-it, `entry()` (P4) hands the original `Throwable` (`e.throwable()`) back to Kotlin, so a Kotlin exception that went
+it, `entry()` ([ADR-0007](../adr/0007-exceptions-entry-and-log-sink.md)) hands the original `Throwable` (`e.throwable()`) back to Kotlin, so a Kotlin exception that went
 through native code arrives as the same object. On your own native thread nobody is above you: catch it where you know
 the context.
 
@@ -224,6 +224,6 @@ What the compiler cannot know is the Kotlin side; that is what startup is for (A
 
 ## Where next
 
-`entry()` (P4) will wrap every registered native in the one `try/catch` that maps C++ errors to Java exceptions, and
-return `JavaException::throwable()` to Kotlin as it is. Strings and arrays you build by hand today (`NewStringUTF`)
+`entry()` wraps every registered native in the one `try/catch` that maps C++ errors to Java exceptions, and returns
+`JavaException::throwable()` to Kotlin as it is; see [exceptions-and-logs-by-example.md](exceptions-and-logs-by-example.md). Strings and arrays you build by hand today (`NewStringUTF`)
 become conversions in P5.
