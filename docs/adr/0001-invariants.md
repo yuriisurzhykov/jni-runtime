@@ -46,7 +46,8 @@ Draft
 
 ## 3. Threading
 
-- 3.1 Only `JavaVM*` is cached. `JNIEnv*` is never stored or shared between threads.
+- 3.1 Only `JavaVM*` is cached. `JNIEnv*` is never stored or shared between threads. The one exception is
+  `LocalRef`, which keeps the `env` of the thread that owns it for its own scope (ADR-0004 §3).
 - 3.2 `jnirt::env()` calls `GetEnv` first. A thread already attached by someone else is left alone.
 - 3.3 The runtime detaches only threads it attached itself, through a `pthread_key` destructor.
   *Details in ADR-0003.*
@@ -61,7 +62,7 @@ Draft
 - 4.1 All `jclass`, `jmethodID`, `jfieldID` are resolved once in `JNI_OnLoad` and kept as global refs. `FindClass` is
   never called from native threads.
 - 4.2 Ownership of references is expressed with RAII types: `LocalRef`, `GlobalRef`, `WeakGlobalRef`. Raw `jobject` does
-  not appear in library APIs.
+  not appear in library APIs. *Details in ADR-0004.*
 - 4.3 Long loops and long-running native methods use `PushLocalFrame` or explicit deletion.
 
 ## 5. Callbacks and subscriptions
@@ -84,6 +85,7 @@ Draft
 - 6.4 The **public Kotlin API** of a library may wrap these exceptions into the project's result type. One error is
   reported in one way only: never both a result and an exception.
 - 6.5 With a pending Java exception, only the minimal allowed set of JNI calls is made: check, clear, or return.
+  Deleting references is on that list, so `LocalRef` / `GlobalRef` destructors are safe during unwinding (ADR-0004 §7).
 - 6.6 `cause` chains are preserved. The native stack is **not** part of the Java stack trace: it goes to the log, and
   crashes rely on tombstones.
 
