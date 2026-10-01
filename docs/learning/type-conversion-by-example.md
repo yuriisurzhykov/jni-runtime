@@ -70,7 +70,8 @@ If Java passes null:
 
 ```
 // output:
-java.lang.IllegalArgumentException: argument 1 is null, but this parameter is a non-null Ljava/lang/String;. Declare it as std::optional<...> if null is allowed.
+java.lang.IllegalArgumentException: argument 1 is null, but this parameter is a non-null Ljava/lang/String;.
+  fix: declare it as std::optional<...> if null is allowed (Kotlin: T?).
     at com.acme.camera.Camera.open(Native Method)
 ```
 
@@ -173,10 +174,14 @@ If `currentProfile` is described as `std::string()` but Kotlin returns null:
 
 ```
 // output:
-java.lang.IllegalStateException: Camera.currentProfile() returned null; declare the result as std::optional<...>
+java.lang.IllegalStateException: Camera.currentProfile(): returned null, but the C++ type of the result has no null.
+  fix: declare the result as std::optional<...> (Kotlin: String?).
 ```
 
 That is a wrong description, not wrong data, so it is an `IllegalStateException`.
+
+One thing to know: a call is a template over its arguments, so `{1, 2, 3}` can not be passed for a `std::vector<jint>`
+parameter. Write the type: `CameraJ::setPoints(env, camera, std::vector<jint>{1, 2, 3})`.
 
 Fields work the same: `Field<CameraJ, std::string> name_{"name"}`, `name_.get(env, camera)`, `name_.set(env, camera, "Двор")`.
 `Field<CameraJ, std::optional<std::string>>` can be set to `std::nullopt`.
@@ -306,8 +311,14 @@ jint readFrame(JNIEnv *, jobject, jnirt::DirectBuffer target) {                 
 
 ```
 // output, for ByteBuffer.allocate(100) (not direct):
-java.lang.IllegalArgumentException: argument 1 is not a direct ByteBuffer
+java.lang.IllegalArgumentException: the ByteBuffer is not direct (or this JVM can not give its memory).
+  fix: create it with ByteBuffer.allocateDirect(n) on the Kotlin side.
 ```
+
+`DirectBuffer` is only a parameter of a native function: the memory belongs to the Java object, so a `DirectBuffer` as a
+result of a Java call, as a field, or as an element of a collection does not compile (it would outlive the buffer). If you
+really hold the buffer's `jobject`, `jnirt::fromJava<DirectBuffer>(env, ref.get())` is the explicit way, and the pointer
+is yours to keep valid while `ref` lives.
 
 `size()` is the capacity. `position` and `limit` are not read; pass a slice as offset and length. Handing Kotlin a
 `ByteBuffer` over *native* memory is not in P5 (who keeps the memory alive? that is P6).
@@ -326,14 +337,17 @@ std::vector<std::string> discovered(JNIEnv *, jobject) { return sdk::scan(); }  
 
 ```
 // output, for listOf("a", null) passed from Java:
-java.lang.IllegalArgumentException: argument 1: element 1 is null, but the element type is a non-null Ljava/lang/String;
+java.lang.IllegalArgumentException: element 1 is null, but the element type is a non-null Ljava/lang/String;.
+  fix: use std::optional<...> for it if null is allowed.
 ```
 
 For `List<String?>` write `std::vector<std::optional<std::string>>`. A list of 100 000 strings does not overflow the table
 of local references: each element's reference lives for one iteration of the loop.
 
 `Map<String, String>` is `std::map<std::string, std::string>` (or `unordered_map`). It is slow by nature (three calls into
-Java per pair); for a hot path pass two arrays. Kotlin sees the entries in the order of the C++ container.
+Java per pair); for a hot path pass two arrays. Going to Kotlin it is a `LinkedHashMap`, so Kotlin sees the entries in the
+order of the C++ container. A number is boxed (`std::map<std::string, jint>` is `Map<String, Int>`); a null key or value
+is the same kind of error as a null element (`the value of entry 3 is null, but ...`), and `std::optional` allows it.
 
 ## 11. Your own type: `data class Frame`
 
@@ -414,8 +428,10 @@ jint countWide(JNIEnv *env, jobject, jnirt::Array<FrameJ> frames) {         // t
 }
 ```
 
-`jnirt::Array<C>` is a view of a `jobjectArray` with its element class in the type; nothing is converted. `jnirt::newArray<C>(env, n)`
-makes one.
+`jnirt::Array<C>` holds a local reference to the `jobjectArray` (a copy of the reference, not of the elements) with its
+element class in the type; nothing is converted. Like every `LocalRef`, it stays on the thread and inside the native call.
+`raw()` gives the `jobjectArray`, `set(env, i, element)` stores one, `jnirt::newArray<C>(env, n)` makes a new array of
+nulls. `C` must be a described class (`struct FrameJ : JavaClass<FrameJ>`).
 
 ## 13. What `init` says about the Kotlin side
 
@@ -429,34 +445,49 @@ external fun open(id: CameraId): Boolean            // the JVM name is open-Ab3x
 ```
 // output:
 E jnirt: method com.acme.camera.Camera.open (J)Z: not found
-         hint: found open-Ab3xQ9z(J)Z. A value class parameter (or UInt) changes the method name. Take Long on the border.
+  hint: the class has `open-Ab3xQ9z`: Kotlin gives a function with a value class (or UInt, ULong...) in its signature a
+        mangled name. Take the underlying type (Int, Long) on the border and wrap it in Kotlin.
 ```
 
 Fix: `private external fun open(id: Long): Boolean` and `fun open(id: CameraId) = open(id.raw)`.
 
 | Kotlin                                  | What `init` says                                                                     |
 |-----------------------------------------|--------------------------------------------------------------------------------------|
-| `internal external fun reset()`         | found `reset$camera_release()V`: `internal` adds the module name; use `public` or `private` |
-| `external fun version(): Int` in `companion object` | found in `Camera$Companion`: add `@JvmStatic`                             |
+| `internal external fun reset()`         | the class has `reset$camera_release`: `internal` adds the module name; use `public` or `private` |
+| `fun scan(a: Int, b: Int = 0)` called with one argument | the class has `scan$default`: describe the full signature             |
+| `external fun version(): Int` in `companion object` | `Camera$Companion` has it: add `@JvmStatic`                               |
 | `suspend`, `Flow`                       | not on the border; use a callback (P7)                                               |
 
 ## 14. What it costs
 
-Conversion hides calls into Java. The numbers on a device are in `examples/p5_bench`; the shape is:
+Conversion hides calls into Java. These are measured, from Java through a native function and back, with a host JVM in a
+Release build (`jnirt_convert_bench` in `tests/host`; a device is slower and its JIT differs, so use the shape, not the
+digits):
 
-| Type                          | Cost beyond the copy                                    |
-|-------------------------------|---------------------------------------------------------|
-| numbers, `bool`               | none                                                    |
-| `std::string`                 | one copy and a UTF conversion (ASCII is a byte copy)    |
-| `std::optional<jint>`         | one call into Java                                      |
-| `std::vector<jint>`           | one copy                                                |
-| `withCritical`, `DirectBuffer`| none                                                    |
-| `std::vector<T>` as `List`    | about one call into Java per element                    |
-| `std::map<K, V>`              | about three calls per pair                              |
-| your own `Frame`              | one call per field                                      |
+| Type                                         | Measured                                      | Where it comes from                  |
+|----------------------------------------------|-----------------------------------------------|--------------------------------------|
+| `jint` (baseline, one call)                  | 16 ns                                         | the call itself                      |
+| `std::optional<jint>`                        | 178 ns                                        | `Integer.valueOf` / `intValue`       |
+| `jstring` as is                              | 24-37 ns                                      | nothing converted                    |
+| `std::string`, 16 chars, in and out          | 295 ns                                        | two copies, two UTF conversions      |
+| `std::string`, 1 KB                          | 3.9 us                                        | about 4 ns per char                  |
+| `std::string`, 64 K chars                    | 231 us                                        | the same, linear                     |
+| `std::vector<jint>` into C++                 | 0.4 ns per element (0.8 at a million)         | one copy                             |
+| `std::vector<jint>` there and back           | 1.1-1.8 ns per element                        | two copies and a new Java array      |
+| the same array in pieces of 4096             | 0.3-0.4 ns per element                        | a copy that stays in the cache       |
+| `withCriticalRead`                           | 0.2-0.3 ns per element                        | no copy (reading the data)           |
+| `DirectBuffer`                               | 0.2 ns per byte                               | no copy (reading the data)           |
+| `std::vector<std::string>` as `List`         | 237-291 ns per element                        | a string and a call per element      |
+| `std::map<std::string, jint>` as `Map`       | 863-1521 ns per entry                         | three calls and two boxes per entry  |
 
-The rule is still coarse-grained calls: one call that carries a `List<Frame>` is cheaper than a thousand calls that
-carry one `Frame` each.
+How to read it. A number costs nothing. A string is a copy, so it costs by its length: a path or a name is fine, a
+megabyte of text per call is not. A primitive array is a copy at memory speed: a camera frame of 3 MB is about a
+millisecond each way, which is why `withCritical` or a `DirectBuffer` is for frames, and the vector for settings. A
+`List` or `Map` costs a call into Java per element: a thousand-element list is a quarter of a millisecond, a
+hundred-thousand-element map is already 0.1 s. The rule is still coarse-grained calls: one call that carries a
+`List<Frame>` is cheaper than a thousand calls that carry one `Frame` each, and a big table goes as two arrays.
+
+Your own `Frame` costs one call per field. The same cases on Edge II hardware are the optional `examples/p5_bench`.
 
 ## 15. What does not compile
 
@@ -470,3 +501,6 @@ carry one `Frame` each.
 | `std::string_view` as a result of a Java call   | it would point to freed memory                                       | `std::string`                     |
 | `jobject` parameter with no Java type           | which Java class? (as in P3)                                         | `native<&f, void(ListenerJ)>`     |
 | `std::vector<jint>` when Kotlin has `List<Int>` | compiles; startup says not found                                     | `IntArray` in Kotlin              |
+| `DirectBuffer` as a result, field or element    | the memory belongs to the Java object, it would outlive it           | `DirectBuffer` only as a parameter, or `fromJava<DirectBuffer>(env, ref.get())` |
+| `readArray(env, jintArray, ...)` into a `float` buffer | the buffer does not match the array type                      | the buffer type of the array (`jint`) |
+| `withCritical` inside `withCritical`, or a JNI call / `env()` / a Java call inside it | a debug assertion (in Release the JVM may deadlock) | take what you need before; keep the lambda to plain loops |

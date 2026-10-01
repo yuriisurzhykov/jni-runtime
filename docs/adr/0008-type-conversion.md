@@ -254,9 +254,12 @@ The hints are for methods and natives; fields are not looked at. The cost is pai
 ### 10. Cost of crossing
 
 Conversion hides calls into Java: `std::optional<jint>` is `Integer.valueOf`, a `List` is one call per element, a
-`Map` is three per pair. The learning guide has a table of costs. Host micro-benchmarks (`tests/host`, not run by
-`ctest`) print the numbers, and `examples/p5_bench` runs the same cases on a device (Edge II) for the real ones. The rule
-of the roadmap stays: coarse calls.
+`Map` is three per pair. The learning guide (§14) has the measured table. `jnirt_convert_bench` in `tests/host` (a
+build target, not a ctest test, no thresholds) prints the numbers for a host JVM; build it in Release. Measured there:
+a `jint` call 16 ns, `std::optional<jint>` 178 ns, a 16-char `std::string` both ways 295 ns, a `jint` array 0.4 ns per
+element one way and 1.1-1.8 both ways, `withCritical` 0.2-0.3, a `List<String>` about 250 ns per element, a
+`Map<String, Int>` 0.9-1.5 us per entry. An optional `examples/p5_bench` runs the same cases on a device (Edge II) for
+the real digits. The rule of the roadmap stays: coarse calls.
 
 ## Consequences
 

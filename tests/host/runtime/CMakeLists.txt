@@ -39,3 +39,9 @@ jnirt_add_jvm_test(runtime_convert_test convert_test.cpp)
 jnirt_add_jvm_test(runtime_convert_array_test convert_array_test.cpp)
 jnirt_add_jvm_test(runtime_convert_collection_test convert_collection_test.cpp)
 jnirt_add_jvm_test(runtime_kotlin_hints_test kotlin_hints_test.cpp)
+
+# The cost of crossing, printed: not a test, not in ctest (ADR-0008 §10). Run it from a Release build.
+add_executable(jnirt_convert_bench convert_bench.cpp)
+target_link_libraries(jnirt_convert_bench PRIVATE jnirt::runtime jnirt::options ${JAVA_JVM_LIBRARY})
+target_compile_definitions(jnirt_convert_bench PRIVATE JNIRT_TEST_CLASSPATH="${JNIRT_TEST_CLASSES_DIR}")
+add_dependencies(jnirt_convert_bench jnirt_test_classes)
