@@ -171,8 +171,8 @@ every CI run.
 |--------------------------------------------|----------------------------------------------------------------------------|
 | `jobjectArray`                             | P5: needs the element type (`Array<FrameJ>` → `[Lcom/acme/camera/Frame;`)   |
 | `std::string`, `bool`, collections, `ByteBuffer` | P5 conversions                                                       |
-| `jnirt::Object`, `JavaClass` definition    | P3.5, with `class_cache`                                                    |
-| native-function rules (§6)                 | P3.6, with `registry`                                                       |
+| `jnirt::Object`, `JavaClass` definition    | done in P3.5 ([ADR-0006](0006-class-cache-and-registry.md))                 |
+| native-function rules (§6)                 | done in P3.6 (ADR-0006 §5)                                                  |
 | human-readable signatures in error messages (`onFrame(int, String)`) | not needed: the JVM form is what the developer greps for in `javap -s` |
 
 ## Consequences

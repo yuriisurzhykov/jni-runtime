@@ -60,7 +60,7 @@ Draft
 ## 4. References
 
 - 4.1 All `jclass`, `jmethodID`, `jfieldID` are resolved once in `JNI_OnLoad` and kept as global refs. `FindClass` is
-  never called from native threads.
+  never called from native threads. *Details in ADR-0006.*
 - 4.2 Ownership of references is expressed with RAII types: `LocalRef`, `GlobalRef`, `WeakGlobalRef`. Raw `jobject` does
   not appear in library APIs. *Details in ADR-0004.*
 - 4.3 Long loops and long-running native methods use `PushLocalFrame` or explicit deletion.
@@ -104,7 +104,7 @@ Draft
 
 - 9.1 `JNI_OnLoad` runs a **fail-fast self-check**: every registered class, method and field exists, and native and
   Kotlin
-  runtime versions match.
+  runtime versions match. *Details in ADR-0006.*
 - 9.2 This catches R8/ProGuard breakage at startup, not in production.
 
 ## 10. Toolchain
