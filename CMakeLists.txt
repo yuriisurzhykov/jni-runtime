@@ -12,3 +12,9 @@ if (JNIRT_BUILD_TESTS)
     enable_testing()
     add_subdirectory(tests/host)
 endif ()
+
+# Learning examples (examples/): off by default.
+option(JNIRT_BUILD_EXAMPLES "Build the learning examples" OFF)
+if (JNIRT_BUILD_EXAMPLES)
+    add_subdirectory(examples)
+endif ()
