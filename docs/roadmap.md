@@ -18,7 +18,7 @@ P0 Design ─► P1 Build skeleton ─► P2 support (log ✔, error ✔, assert
                                         │
                         ┌───────────────┴───────────────┐
                         ▼                               ▼
-                 P5 Type conversion             P6 Peer model
+                 P5 Type conversion ✔            P6 Peer model ✔
                         │                               │
                         └───────────────┬───────────────┘
                                         ▼
