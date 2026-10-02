@@ -84,7 +84,7 @@ catch (const jnirt::JavaException&) { std::throw_with_nested(jnirt::Error(Errc::
 A message is converted from UTF-8 to a Java string with `NewString` (UTF-16), not `NewStringUTF`: that one takes
 *modified* UTF-8, and CheckJNI aborts on an emoji or an invalid byte, and those come from the outside world (a camera
 name, a server reply). An invalid sequence (a stray byte, a cut-off character, an overlong form, a surrogate) becomes one
-`U+FFFD` per sequence. The function is internal; P5 makes the public conversion from it.
+`U+FFFD` per sequence. The function is internal; P5 made the public conversion from it ([ADR-0008](0008-type-conversion.md) §3).
 
 ### 5. Kotlin API
 
@@ -152,7 +152,9 @@ LOGI(...) -> format -> forwarder set? --yes, it took the line--> done
      log line could kill the process. Threads whose logs matter call `jnirt::env()` themselves;
   2. a Java exception is pending (no Java calls are allowed);
   3. a line is written while one is being forwarded (the receiver logs into native, or the forwarder reports a failure);
-  4. the receiver threw: the exception is cleared, a warning says so, the original line goes to logcat.
+  4. the receiver threw: the exception is cleared, a warning says so, the original line goes to logcat;
+  5. the thread is inside `withCritical` (ADR-0008 §5): between `GetPrimitiveArrayCritical` and its release no JNI call
+     is allowed, so the line goes to logcat. A thread-local depth counter, set by `withCritical`, says so.
 - `JNIRT_ASSERT` / `JNIRT_FATAL` write straight to logcat and never use the forwarder: after a broken invariant the heap and
   the JVM can not be trusted, and the forwarder calls Java.
 - `NativeLogBridge.setNativeLevel(priority)` is a native method that `init()` registers itself; it sets the one level of

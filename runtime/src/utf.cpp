@@ -72,6 +72,38 @@ namespace jnirt::detail {
         return out;
     }
 
+    std::string utf16ToUtf8(const char16_t *units, std::size_t count) {
+        std::string out;
+        out.reserve(count);
+        for (std::size_t i = 0; i < count; ++i) {
+            char16_t unit = units[i];
+            if (unit < 0x80) {
+                out.push_back(static_cast<char>(unit));
+            } else if (unit < 0x800) {
+                out.push_back(static_cast<char>(0xC0 | (unit >> 6)));
+                out.push_back(static_cast<char>(0x80 | (unit & 0x3F)));
+            } else if (unit >= 0xD800 && unit <= 0xDFFF) {
+                bool highSurrogate = unit <= 0xDBFF;
+                if (highSurrogate && i + 1 < count && units[i + 1] >= 0xDC00 && units[i + 1] <= 0xDFFF) {
+                    std::uint32_t code = 0x10000 + ((static_cast<std::uint32_t>(unit) - 0xD800) << 10) +
+                                         (static_cast<std::uint32_t>(units[i + 1]) - 0xDC00);
+                    out.push_back(static_cast<char>(0xF0 | (code >> 18)));
+                    out.push_back(static_cast<char>(0x80 | ((code >> 12) & 0x3F)));
+                    out.push_back(static_cast<char>(0x80 | ((code >> 6) & 0x3F)));
+                    out.push_back(static_cast<char>(0x80 | (code & 0x3F)));
+                    ++i;
+                } else {
+                    out.append("\xEF\xBF\xBD"); // U+FFFD: a surrogate with no partner is not text
+                }
+            } else {
+                out.push_back(static_cast<char>(0xE0 | (unit >> 12)));
+                out.push_back(static_cast<char>(0x80 | ((unit >> 6) & 0x3F)));
+                out.push_back(static_cast<char>(0x80 | (unit & 0x3F)));
+            }
+        }
+        return out;
+    }
+
     jstring newJavaString(JNIEnv *env, std::string_view text) {
         std::u16string utf16 = utf8ToUtf16(text);
         return env->NewString(reinterpret_cast<const jchar *>(utf16.data()), static_cast<jsize>(utf16.size()));

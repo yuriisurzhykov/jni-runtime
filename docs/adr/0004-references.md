@@ -134,7 +134,7 @@ jnirt: a LocalRef is destroyed on thread "camera-rx", not on the thread that cre
 |---------------------------------------|------------------------------------------------------------------------------------|
 | copying `GlobalRef`                   | a hidden `NewGlobalRef` on every copy; an explicit copy or `shared_ptr` is clearer |
 | `LocalFrame` (`PushLocalFrame`)       | `LocalRef` in a loop already keeps the table flat; add when needed (ADR-0001 §4.3) |
-| non-owning view for parameters        | parameters stay raw `jobject`; a view may come with conversions in P5              |
+| non-owning view for parameters        | parameters stay raw `jobject`; the conversions of P5 (ADR-0008) give converted values instead |
 | `operator->`, implicit conversion to `T` | implicit conversion makes it easy to hand out `get()` where `release()` is needed |
 | typed object refs (`LocalRef<CameraJ>`) | compile-time object type checks; revisit with `class_cache`                     |
 

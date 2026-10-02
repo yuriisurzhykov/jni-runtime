@@ -19,8 +19,12 @@
 //
 // A class that has members must be added to the Registry (r.add<CameraJ>()): init checks that none is forgotten.
 //
-// Types are the JNI types of signature.h. A parameter or result that is one of your classes is written as the
-// description (ListenerJ) and passed as a jobject; results that are objects come back as LocalRef<T>.
+// Types are the C++ types of convert.h: the JNI types, bool, std::string, std::optional<T>, std::vector<T> and the
+// types you add. A parameter or result that is one of your classes is written as the description (ListenerJ) and passed
+// as a jobject. Arguments are converted for the call and the temporary Java objects are deleted after it. A result
+// that is a raw JNI reference or a described class comes back as a LocalRef<T>; any other result is the C++ value.
+//
+//   Method<CameraJ, std::string(jint)>  name{"name"};     std::string text = CameraJ::name(env, camera, 3);
 //
 // Debug builds check that the object really is an instance of the class (IsInstanceOf) and that init has run.
 //
@@ -30,12 +34,14 @@
 #define JNI_TEST_CLASS_CACHE_H
 
 #pragma once
+#include <jnirt/runtime/convert.h>
 #include <jnirt/runtime/detail/jni_calls.h>
 #include <jnirt/runtime/exception.h>
 #include <jnirt/runtime/ref.h>
 #include <jnirt/runtime/signature.h>
 
 #include <type_traits>
+#include <utility>
 #include <vector>
 
 namespace jnirt {
@@ -63,31 +69,6 @@ namespace jnirt {
             static ClassInfo *info = new ClassInfo(C::name);
             return *info;
         }
-
-        // What is written in C++ for a Java type: the JNI type itself for primitives and JNI references
-        // (jint, jstring, ...), jobject for a described class (ListenerJ). Decided without looking inside the
-        // type, because a class may name itself in its own members while it is still incomplete.
-        template<class T>
-        using JniForm = std::conditional_t<std::is_arithmetic_v<T> || std::is_pointer_v<T> || std::is_void_v<T>,
-            T, jobject>;
-
-        template<class T>
-        constexpr bool isReference = std::is_pointer_v<JniForm<T>>;
-
-        // The C++ type of the JNI call that returns T: jobject for every reference.
-        template<class T>
-        using CallType = std::conditional_t<isReference<T>, jobject, T>;
-
-        // What a call gives back: void or a primitive as they are, a reference as an owning LocalRef.
-        template<class T, bool = isReference<T>>
-        struct Returned {
-            using type = T;
-        };
-
-        template<class T>
-        struct Returned<T, true> {
-            using type = LocalRef<JniForm<T>>;
-        };
 
         // A Field, Method, ... of a class. Adds itself to the class when constructed.
         class Member {
@@ -140,6 +121,44 @@ namespace jnirt {
 
         // The global reference to the class of `info`, checked to exist in debug builds.
         jclass liveClass(const ClassInfo &info);
+
+        // A Java method returned null, and the C++ type of its result has no null: IllegalStateException that names
+        // the member. Defined in class_cache.cpp.
+        [[noreturn]] void resultIsNull(const Member &member);
+
+        // The argument `actual` of a call, as the JNI value for Java type A: a number as it is, or a LocalRef that
+        // the caller keeps alive until the call is made (the temporary dies at the end of the call expression).
+        // `actual` is converted the way a function argument would be: 1 to jint, "text" to std::string.
+        template<class A, class Actual>
+        auto marshal(JNIEnv *env, Actual &&actual) {
+            ArgOf<A> converted = std::forward<Actual>(actual);
+            return RowOf<A>::toJava(env, converted);
+        }
+
+        // What a call gives back: `raw` as the C++ result of Java type R. A reference is a new local reference and
+        // is owned from here on: it becomes a LocalRef (raw JNI types, described classes) or is deleted after it is
+        // converted (everything else).
+        template<class R>
+        auto makeResult(JNIEnv *env, CallType<R> raw, const Member &member) {
+            using Row = RowOf<R>;
+            static_assert(!BorrowFlag<Row>::value,
+                          "jnirt: this value points into a Java object that may be collected as soon as the "
+                          "local reference of the result is gone (a DirectBuffer). Take it as a native parameter, "
+                          "or keep the reference yourself and call jnirt::fromJava<DirectBuffer>(env, ref.get()).");
+            if constexpr (!std::is_pointer_v<typename Row::Jni>) {
+                return Row::fromJava(env, raw);
+            } else {
+                LocalRef<jobject> owned(env, raw);
+                if constexpr (isHandle<R>) {
+                    return LocalRef<typename Row::Jni>(env, static_cast<typename Row::Jni>(owned.release()));
+                } else {
+                    if constexpr (rejectsNull<R>) {
+                        if (raw == nullptr) resultIsNull(member);
+                    }
+                    return Row::fromJava(env, static_cast<typename Row::Jni>(owned.get()));
+                }
+            }
+        }
     } // namespace detail
 
     // Base of a Java class description: struct CameraJ : jnirt::JavaClass<CameraJ> { static constexpr const char
@@ -158,7 +177,8 @@ namespace jnirt {
     // ---- Fields ----
 
     // A field of an object: CameraJ::nativeHandle.get(env, camera), .set(env, camera, 5).
-    // T is a JNI type or a described class; objects come back as LocalRef.
+    // T is a type of convert.h or a described class. A raw reference or an object comes back as LocalRef; std::string
+    // and the other converted types come back as the C++ value.
     template<class C, class T>
     class Field final : public detail::Member {
         static_assert(!std::is_void_v<T>, "jnirt: a field can not be void");
@@ -166,20 +186,19 @@ namespace jnirt {
     public:
         explicit Field(const char *name) : Member(detail::classInfo<C>(), name) {}
 
-        typename detail::Returned<T>::type get(JNIEnv *env, jobject self) const {
+        auto get(JNIEnv *env, jobject self) const {
             detail::beforeInstanceCall(env, self, *this);
-            if constexpr (detail::isReference<T>) {
-                jobject value = detail::getField<jobject>(env, self, id_);
-                return LocalRef<detail::JniForm<T> >(env, static_cast<detail::JniForm<T> >(value));
-            } else {
-                return detail::getField<T>(env, self, id_);
-            }
+            detail::CallType<T> raw = detail::getField<detail::CallType<T> >(env, self, id_);
+            return detail::makeResult<T>(env, raw, *this);
         }
 
-        // For a reference field `value` is a JNI reference (ref.get()); nullptr clears the field.
-        void set(JNIEnv *env, jobject self, detail::JniForm<T> value) const {
+        // For a raw reference `value` is a JNI reference (ref.get()), nullptr clears the field; for std::string and
+        // the like it is the C++ value.
+        template<class V>
+        void set(JNIEnv *env, jobject self, V &&value) const {
             detail::beforeInstanceCall(env, self, *this);
-            detail::setField<detail::CallType<T> >(env, self, id_, value);
+            auto jni = detail::marshal<T>(env, std::forward<V>(value));
+            detail::setField<detail::CallType<T> >(env, self, id_, detail::rawOf(jni));
         }
 
         const char *kind() const override { return "field"; }
@@ -211,19 +230,17 @@ namespace jnirt {
     public:
         explicit StaticField(const char *name) : Member(detail::classInfo<C>(), name) {}
 
-        typename detail::Returned<T>::type get(JNIEnv *env) const {
+        auto get(JNIEnv *env) const {
             detail::beforeStaticCall(*this);
-            if constexpr (detail::isReference<T>) {
-                jobject value = detail::getStaticField<jobject>(env, owner().cls, id_);
-                return LocalRef<detail::JniForm<T> >(env, static_cast<detail::JniForm<T> >(value));
-            } else {
-                return detail::getStaticField<T>(env, owner().cls, id_);
-            }
+            detail::CallType<T> raw = detail::getStaticField<detail::CallType<T> >(env, owner().cls, id_);
+            return detail::makeResult<T>(env, raw, *this);
         }
 
-        void set(JNIEnv *env, detail::JniForm<T> value) const {
+        template<class V>
+        void set(JNIEnv *env, V &&value) const {
             detail::beforeStaticCall(*this);
-            detail::setStaticField<detail::CallType<T> >(env, owner().cls, id_, value);
+            auto jni = detail::marshal<T>(env, std::forward<V>(value));
+            detail::setStaticField<detail::CallType<T> >(env, owner().cls, id_, detail::rawOf(jni));
         }
 
         const char *kind() const override { return "static field"; }
@@ -254,25 +271,26 @@ namespace jnirt {
     };
 
     // A method of an object: CameraJ::onFrame(env, camera, 1, name.get()).
-    // The result is void, a primitive, or a LocalRef for an object. A Java exception is thrown as JavaException.
+    // The result is void, a number, a LocalRef for a raw reference or an object, or the C++ value of a converted type.
+    // A Java exception is thrown as JavaException.
     template<class C, class R, class... A>
     class Method<C, R(A...)> final : public detail::Member {
     public:
         explicit Method(const char *name) : Member(detail::classInfo<C>(), name) {}
 
-        typename detail::Returned<R>::type operator()(JNIEnv *env, jobject self, detail::JniForm<A>... args) const {
+        template<class... Actual>
+        auto operator()(JNIEnv *env, jobject self, Actual &&... args) const {
+            static_assert(sizeof...(Actual) == sizeof...(A), "jnirt: wrong number of arguments for this method");
             detail::beforeInstanceCall(env, self, *this);
             if constexpr (std::is_void_v<R>) {
-                detail::callMethod<void>(env, self, id_, args...);
+                detail::callMethod<void>(env, self, id_,
+                                         detail::rawOf(detail::marshal<A>(env, std::forward<Actual>(args)))...);
                 detail::throwIfPending(env);
-            } else if constexpr (detail::isReference<R>) {
-                jobject result = detail::callMethod<jobject>(env, self, id_, args...);
-                detail::throwIfPending(env);
-                return LocalRef<detail::JniForm<R> >(env, static_cast<detail::JniForm<R> >(result));
             } else {
-                R result = detail::callMethod<R>(env, self, id_, args...);
+                detail::CallType<R> raw = detail::callMethod<detail::CallType<R> >(
+                    env, self, id_, detail::rawOf(detail::marshal<A>(env, std::forward<Actual>(args)))...);
                 detail::throwIfPending(env);
-                return result;
+                return detail::makeResult<R>(env, raw, *this);
             }
         }
 
@@ -310,19 +328,19 @@ namespace jnirt {
     public:
         explicit StaticMethod(const char *name) : Member(detail::classInfo<C>(), name) {}
 
-        typename detail::Returned<R>::type operator()(JNIEnv *env, detail::JniForm<A>... args) const {
+        template<class... Actual>
+        auto operator()(JNIEnv *env, Actual &&... args) const {
+            static_assert(sizeof...(Actual) == sizeof...(A), "jnirt: wrong number of arguments for this method");
             detail::beforeStaticCall(*this);
             if constexpr (std::is_void_v<R>) {
-                detail::callStaticMethod<void>(env, owner().cls, id_, args...);
+                detail::callStaticMethod<void>(env, owner().cls, id_,
+                                               detail::rawOf(detail::marshal<A>(env, std::forward<Actual>(args)))...);
                 detail::throwIfPending(env);
-            } else if constexpr (detail::isReference<R>) {
-                jobject result = detail::callStaticMethod<jobject>(env, owner().cls, id_, args...);
-                detail::throwIfPending(env);
-                return LocalRef<detail::JniForm<R> >(env, static_cast<detail::JniForm<R> >(result));
             } else {
-                R result = detail::callStaticMethod<R>(env, owner().cls, id_, args...);
+                detail::CallType<R> raw = detail::callStaticMethod<detail::CallType<R> >(
+                    env, owner().cls, id_, detail::rawOf(detail::marshal<A>(env, std::forward<Actual>(args)))...);
                 detail::throwIfPending(env);
-                return result;
+                return detail::makeResult<R>(env, raw, *this);
             }
         }
 
@@ -362,9 +380,12 @@ namespace jnirt {
     public:
         Constructor() : Member(detail::classInfo<C>(), "<init>") {}
 
-        LocalRef<jobject> operator()(JNIEnv *env, detail::JniForm<A>... args) const {
+        template<class... Actual>
+        LocalRef<jobject> operator()(JNIEnv *env, Actual &&... args) const {
+            static_assert(sizeof...(Actual) == sizeof...(A), "jnirt: wrong number of arguments for this constructor");
             detail::beforeStaticCall(*this);
-            jobject created = env->NewObject(owner().cls, id_, args...);
+            jobject created = env->NewObject(owner().cls, id_,
+                                             detail::rawOf(detail::marshal<A>(env, std::forward<Actual>(args)))...);
             detail::throwIfPending(env);
             return LocalRef<jobject>(env, created);
         }

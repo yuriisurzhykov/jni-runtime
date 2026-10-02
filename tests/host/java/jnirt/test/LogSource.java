@@ -9,6 +9,8 @@ public class LogSource {
 
     public static native void logWhilePending(String text);
 
+    public static native void logInCritical(int[] values);
+
     public static void reset() {
         NativeLogBridge.reset();
     }

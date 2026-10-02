@@ -2,6 +2,7 @@
 // stand-in jnirt.NativeLogBridge of tests/host/java (it collects the lines instead of calling Timber).
 // jnirt::init() installing the forwarder is covered in init_test.cpp.
 
+#include <jnirt/runtime/convert.h>
 #include <jnirt/runtime/env.h>
 #include <jnirt/runtime/registry.h>
 #include <jnirt/support/logging/macros.h>
@@ -26,6 +27,7 @@ namespace {
         static inline StaticMethod<LogSourceJ, void(jstring)> logInsideReceiver{"logInsideReceiver"};
         static inline StaticMethod<LogSourceJ, void(jint)> setLevel{"setLevel"};
         static inline StaticMethod<LogSourceJ, jstring(jstring)> probePending{"probePending"};
+        static inline StaticMethod<LogSourceJ, void(jintArray)> logInCritical{"logInCritical"};
     };
 
     void logLine(JNIEnv *env, jclass, jstring text) { LOGI("%s", detail::toUtf8(env, text).c_str()); }
@@ -35,6 +37,12 @@ namespace {
         env->ThrowNew(cls, "pending");
         env->DeleteLocalRef(cls);
         LOGI("%s", detail::toUtf8(env, text).c_str());
+    }
+
+    // The forwarder must not call Java between GetPrimitiveArrayCritical and its release.
+    void logInCritical(JNIEnv *env, jclass, jintArray values) {
+        withCriticalRead(env, values, [](const jint *, std::size_t) { LOGI("inside"); });
+        LOGI("after");
     }
 
     std::u16string utf16(JNIEnv *env, jstring java) {
@@ -49,7 +57,8 @@ namespace {
         void SetUp() override {
             env = jnirt::env();
             Registry registry;
-            registry.add<LogSourceJ>().native<&logLine>("logLine").native<&logWhilePending>("logWhilePending");
+            registry.add<LogSourceJ>().native<&logLine>("logLine").native<&logWhilePending>("logWhilePending")
+                    .native<&logInCritical>("logInCritical");
             auto problems = detail::startup(env, registry, {&detail::classInfo<LogSourceJ>()});
             ASSERT_TRUE(problems.empty()) << (problems.empty() ? "" : problems[0]);
             LogSourceJ::reset(env);
@@ -106,6 +115,15 @@ namespace {
         EXPECT_EQ(line, "java.lang.UnsupportedOperationException: pending");
         EXPECT_EQ(sink, "I/logtest: while pending\n");
         EXPECT_EQ(received(), "");
+    }
+
+    TEST_F(LogBridgeTest, InsideWithCriticalTheLineGoesToTheSink) {
+        LocalRef<jintArray> array(env, env->NewIntArray(3));
+        testing::internal::CaptureStderr();
+        LogSourceJ::logInCritical(env, array.get());
+        std::string sink = testing::internal::GetCapturedStderr();
+        EXPECT_EQ(sink, "I/logtest: inside\n");
+        EXPECT_EQ(received(), "4/logtest/after") << "outside the region the forwarder works again";
     }
 
     TEST_F(LogBridgeTest, ALineWrittenWhileOneIsForwardedGoesToTheSink) {

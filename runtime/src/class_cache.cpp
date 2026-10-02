@@ -5,8 +5,11 @@
 
 #include <jnirt/runtime/class_cache.h>
 #include <jnirt/support/assert.h>
+#include <jnirt/support/error.h>
 
 #include "class_cache_internal.h"
+#include "critical.h"
+#include "kotlin_hints.h"
 
 #include <algorithm>
 #include <cstring>
@@ -49,6 +52,15 @@ namespace jnirt::detail {
             return text + " " + member.descriptor();
         }
 
+        [[maybe_unused]] void assertNotInsideCritical(const Member &member) {
+            JNIRT_ASSERT(!insideCritical(),
+                         "%s was called inside withCritical.\n"
+                         "  why: between GetPrimitiveArrayCritical and its release no JNI call is allowed; the "
+                         "garbage collector is held and a JNI call can deadlock the process.\n"
+                         "  fix: call Java before or after withCritical, outside the lambda.",
+                         describeMember(member).c_str());
+        }
+
         [[maybe_unused]] void assertResolved(const Member &member) {
             JNIRT_ASSERT(member.resolved(),
                          "%s was used before jnirt::init() found it, or its lookup failed.\n"
@@ -60,9 +72,17 @@ namespace jnirt::detail {
         }
     } // namespace
 
+    void resultIsNull(const Member &member) {
+        // No file and line: the place would be a line of jnirt, not of the caller (entry.cpp leaves it out).
+        throw IllegalState(describeMember(member) + ": returned null, but the C++ type of the result has no null.\n"
+                           "  fix: declare the result as std::optional<...> (Kotlin: String?).",
+                           "", 0);
+    }
+
     void beforeInstanceCall([[maybe_unused]] JNIEnv *env, jobject self, const Member &member) {
         JNIRT_REQUIRE(self != nullptr, "%s: the object is null.", describeMember(member).c_str());
 #ifndef NDEBUG
+        assertNotInsideCritical(member);
         assertResolved(member);
         JNIRT_ASSERT(env->IsInstanceOf(self, member.owner().cls),
                      "%s: the object is not an instance of %s.\n"
@@ -74,6 +94,7 @@ namespace jnirt::detail {
 
     void beforeStaticCall([[maybe_unused]] const Member &member) {
 #ifndef NDEBUG
+        assertNotInsideCritical(member);
         assertResolved(member);
 #endif
     }
@@ -104,13 +125,20 @@ namespace jnirt::detail {
             problems.push_back(std::move(text));
         }
 
+        // Only a method can have a Kotlin-mangled name or live in a companion object.
+        std::string kotlinHint(JNIEnv *env, const ClassInfo &info, const Member &member) {
+            const std::string kind = member.kind();
+            if (kind != "method" && kind != "static method") return {};
+            return hintForMissingMethod(env, info.cls, info.name, member.name(), member.descriptor());
+        }
+
         void resolveMembers(JNIEnv *env, ClassInfo &info, Problems &problems) {
             for (Member *member: info.members) {
                 switch (member->resolve(env, info.cls)) {
                     case Member::Lookup::Found:
                         break;
                     case Member::Lookup::Missing:
-                        problems.push_back(describeMember(*member) + ": not found");
+                        problems.push_back(describeMember(*member) + ": not found" + kotlinHint(env, info, *member));
                         break;
                     case Member::Lookup::OtherKind:
                         problems.push_back(describeMember(*member) + ": not found\n  hint: " + member->otherKindHint());

@@ -6,6 +6,7 @@
 #include <jnirt/runtime/registry.h>
 
 #include "class_cache_internal.h"
+#include "kotlin_hints.h"
 #include "registry_internal.h"
 
 #include <cstring>
@@ -53,6 +54,8 @@ namespace jnirt {
                                       "or remove @JvmStatic.";
                     } else {
                         what += "\n  hint: the Kotlin method was renamed or removed, its signature differs, or R8 stripped it.";
+                        what += hintForMissingMethod(env, entry.info->cls, entry.info->name, native.name,
+                                                     native.signature);
                     }
                     problems.push_back(std::move(what));
                     return;

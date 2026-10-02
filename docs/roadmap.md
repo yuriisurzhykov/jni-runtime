@@ -138,13 +138,22 @@ a device run are for the reference project.
 
 ## P5. Type conversion
 
-- Strings: UTF-16 both ways, invalid sequences handled.
-- Primitives, boxed types, `Optional`-like handling of nulls.
-- Arrays: copy vs pinning, `Critical` restrictions; direct `ByteBuffer` for large data.
-- Collections: `List`, `Map`; automatic type-to-type conversion driven by the signature layer.
-- Kotlin specifics: value/inline class name mangling, `@JvmStatic` and companion shape, `suspend` / `Flow` mapped
-  explicitly to callbacks.
-- Rule: coarse-grained calls; measure crossing cost on Edge II hardware.
+Design: [ADR-0008](adr/0008-type-conversion.md); explained with examples in
+[learning/type-conversion-by-example.md](learning/type-conversion-by-example.md).
+
+One table `jnirt::Convert<T>` (C++ type to Java type and back), used by explicit `fromJava` / `toJava` and automatically
+by `native<&fn>`, `Method`, `Field` and `Constructor`. Four steps:
+
+| Step | Item                                                                                                     | Status |
+|------|----------------------------------------------------------------------------------------------------------|--------|
+| P5.1 | The table, signatures built from it, `std::string` / `u16string`, `bool`, `std::optional` (null, boxing), automatic conversion in `native<>` and in class_cache calls | `[x]`  |
+| P5.2 | Arrays of primitives (copy, piece, `withCritical`), `DirectBuffer`, logging inside `withCritical`         | `[x]`  |
+| P5.3 | `jnirt::Array<C>`, `std::vector<T>` as `List`, `std::map` as `Map`, your own types (`Convert<Frame>`)      | `[x]`  |
+| P5.4 | Startup hints for Kotlin name mangling (value class, `internal`, companion, `$default`), compile-fail tests, cost of crossing (host benchmark `jnirt_convert_bench`) | `[x]`  |
+
+- Kotlin specifics: value/inline class mangling, `@JvmStatic` and companion shape are rules plus a startup hint; `suspend`
+  / `Flow` stay out of the border and become callbacks in P7.
+- Rule: coarse-grained calls; the host numbers are in the learning guide (§14); the same cases on a real device are the `Run benchmark` button of the `p5_demo` example module (kept with the project's examples).
 
 **Exit criteria:** round-trip tests for each type; local ref count stays bounded in loops.
 

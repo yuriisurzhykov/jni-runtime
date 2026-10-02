@@ -12,6 +12,7 @@
 #include <jnirt/support/assert.h>
 
 #include "class_cache_internal.h"
+#include "critical.h"
 #include "ref_internal.h"
 #include "thread_name.h"
 #include "vm_internal.h"
@@ -75,6 +76,11 @@ namespace jnirt {
     } // namespace
 
     JNIEnv *env() {
+        JNIRT_ASSERT(!detail::insideCritical(),
+                     "jnirt::env() was called inside withCritical.\n"
+                     "  why: between GetPrimitiveArrayCritical and its release no JNI call is allowed; the garbage "
+                     "collector is held and a JNI call can deadlock the process.\n"
+                     "  fix: do the work that needs JNI before or after withCritical, outside the lambda.");
         JavaVM *jvm = vm();
         jint status = JNI_OK;
         JNIEnv *current = getEnv(jvm, &status);

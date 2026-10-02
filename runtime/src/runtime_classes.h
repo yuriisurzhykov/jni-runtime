@@ -45,6 +45,102 @@ namespace jnirt::detail {
         static inline Constructor<OutOfMemoryErrorJ, void(jstring)> create;
     };
 
+    // The boxes of the numbers: std::optional<jint> is an Integer (convert.cpp).
+    struct BooleanJ : JavaClass<BooleanJ> {
+        static constexpr const char *name = "java/lang/Boolean";
+
+        static inline StaticMethod<BooleanJ, BooleanJ(jboolean)> valueOf{"valueOf"};
+        static inline Method<BooleanJ, jboolean()> booleanValue{"booleanValue"};
+    };
+
+    struct ByteJ : JavaClass<ByteJ> {
+        static constexpr const char *name = "java/lang/Byte";
+
+        static inline StaticMethod<ByteJ, ByteJ(jbyte)> valueOf{"valueOf"};
+        static inline Method<ByteJ, jbyte()> byteValue{"byteValue"};
+    };
+
+    struct CharacterJ : JavaClass<CharacterJ> {
+        static constexpr const char *name = "java/lang/Character";
+
+        static inline StaticMethod<CharacterJ, CharacterJ(jchar)> valueOf{"valueOf"};
+        static inline Method<CharacterJ, jchar()> charValue{"charValue"};
+    };
+
+    struct ShortJ : JavaClass<ShortJ> {
+        static constexpr const char *name = "java/lang/Short";
+
+        static inline StaticMethod<ShortJ, ShortJ(jshort)> valueOf{"valueOf"};
+        static inline Method<ShortJ, jshort()> shortValue{"shortValue"};
+    };
+
+    struct IntegerJ : JavaClass<IntegerJ> {
+        static constexpr const char *name = "java/lang/Integer";
+
+        static inline StaticMethod<IntegerJ, IntegerJ(jint)> valueOf{"valueOf"};
+        static inline Method<IntegerJ, jint()> intValue{"intValue"};
+    };
+
+    struct LongJ : JavaClass<LongJ> {
+        static constexpr const char *name = "java/lang/Long";
+
+        static inline StaticMethod<LongJ, LongJ(jlong)> valueOf{"valueOf"};
+        static inline Method<LongJ, jlong()> longValue{"longValue"};
+    };
+
+    struct FloatJ : JavaClass<FloatJ> {
+        static constexpr const char *name = "java/lang/Float";
+
+        static inline StaticMethod<FloatJ, FloatJ(jfloat)> valueOf{"valueOf"};
+        static inline Method<FloatJ, jfloat()> floatValue{"floatValue"};
+    };
+
+    struct DoubleJ : JavaClass<DoubleJ> {
+        static constexpr const char *name = "java/lang/Double";
+
+        static inline StaticMethod<DoubleJ, DoubleJ(jdouble)> valueOf{"valueOf"};
+        static inline Method<DoubleJ, jdouble()> doubleValue{"doubleValue"};
+    };
+
+    // The collections (convert.cpp): a List is read with toArray() and written as an ArrayList, a Map is read through
+    // entrySet().toArray() and written as a LinkedHashMap.
+    struct CollectionJ : JavaClass<CollectionJ> {
+        static constexpr const char *name = "java/util/Collection";
+
+        static inline Method<CollectionJ, Array<Object>()> toArray{"toArray"};
+    };
+
+    struct SetJ : JavaClass<SetJ> {
+        static constexpr const char *name = "java/util/Set";
+    };
+
+    struct ArrayListJ : JavaClass<ArrayListJ> {
+        static constexpr const char *name = "java/util/ArrayList";
+
+        static inline Constructor<ArrayListJ, void(jint)> create;
+        static inline Method<ArrayListJ, jboolean(Object)> add{"add"};
+    };
+
+    struct MapEntryJ : JavaClass<MapEntryJ> {
+        static constexpr const char *name = "java/util/Map$Entry";
+
+        static inline Method<MapEntryJ, Object()> getKey{"getKey"};
+        static inline Method<MapEntryJ, Object()> getValue{"getValue"};
+    };
+
+    struct MapJ : JavaClass<MapJ> {
+        static constexpr const char *name = "java/util/Map";
+
+        static inline Method<MapJ, SetJ()> entrySet{"entrySet"};
+        static inline Method<MapJ, Object(Object, Object)> put{"put"};
+    };
+
+    struct LinkedHashMapJ : JavaClass<LinkedHashMapJ> {
+        static constexpr const char *name = "java/util/LinkedHashMap";
+
+        static inline Constructor<LinkedHashMapJ, void(jint)> create;
+    };
+
     // Where native log lines go (android/.../NativeLogBridge.kt). `setNativeLevel` is native: init registers it.
     struct NativeLogBridgeJ : JavaClass<NativeLogBridgeJ> {
         static constexpr const char *name = "jnirt/NativeLogBridge";

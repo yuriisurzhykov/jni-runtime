@@ -44,7 +44,10 @@ namespace jnirt::detail {
             return name;
         }
 
+        // A violation that jnirt raises itself (a null that does not fit the type, ADR-0008) has no place: the line
+        // would be in jnirt, and the Java stack trace already names the Kotlin method.
         std::string withPlace(const ContractViolation &e) {
+            if (e.line() == 0) return e.what();
             return std::string(e.what()) + " (" + fileName(e.file()) + ":" + std::to_string(e.line()) + ")";
         }
 
