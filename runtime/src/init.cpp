@@ -25,6 +25,7 @@ namespace jnirt {
                 &throwableClassInfo(), &nativeLoaderClassInfo(), &classInfo<NativeExceptionJ>(),
                 &classInfo<IllegalArgumentExceptionJ>(), &classInfo<IllegalStateExceptionJ>(),
                 &classInfo<OutOfMemoryErrorJ>(), &classInfo<NativeLogBridgeJ>(),
+                &classInfo<NativePeerNativesJ>(),
                 &classInfo<BooleanJ>(), &classInfo<ByteJ>(), &classInfo<CharacterJ>(), &classInfo<ShortJ>(),
                 &classInfo<IntegerJ>(), &classInfo<LongJ>(), &classInfo<FloatJ>(), &classInfo<DoubleJ>(),
                 &classInfo<CollectionJ>(), &classInfo<SetJ>(), &classInfo<ArrayListJ>(), &classInfo<MapEntryJ>(),

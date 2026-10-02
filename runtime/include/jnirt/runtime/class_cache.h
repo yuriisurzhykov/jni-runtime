@@ -131,6 +131,9 @@ namespace jnirt {
         // `actual` is converted the way a function argument would be: 1 to jint, "text" to std::string.
         template<class A, class Actual>
         auto marshal(JNIEnv *env, Actual &&actual) {
+            static_assert(!PeerFlag<RowOf<A> >::value,
+                          "jnirt: a Peer is a native parameter or result and nothing else: giving one to Java would "
+                          "make a new handle for the same object on every call (ADR-0009 §4).");
             ArgOf<A> converted = std::forward<Actual>(actual);
             return RowOf<A>::toJava(env, converted);
         }
@@ -141,6 +144,9 @@ namespace jnirt {
         template<class R>
         auto makeResult(JNIEnv *env, CallType<R> raw, const Member &member) {
             using Row = RowOf<R>;
+            static_assert(!PeerFlag<Row>::value,
+                          "jnirt: a Peer is a native parameter or result and nothing else: a Java method can not "
+                          "give one back (ADR-0009 §4).");
             static_assert(!BorrowFlag<Row>::value,
                           "jnirt: this value points into a Java object that may be collected as soon as the "
                           "local reference of the result is gone (a DirectBuffer). Take it as a native parameter, "

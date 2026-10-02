@@ -9,3 +9,6 @@
 # native code. R8 sees no Kotlin caller for them.
 -keep class jnirt.NativeException { <init>(...); }
 -keep class jnirt.NativeLogBridge { *; }
+
+# jnirt::init registers NativePeerNatives.close itself (ADR-0009), and NativePeer.close() calls it.
+-keep class jnirt.NativePeerNatives { *; }

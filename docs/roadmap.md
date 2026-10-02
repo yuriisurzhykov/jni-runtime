@@ -159,14 +159,19 @@ by `native<&fn>`, `Method`, `Field` and `Constructor`. Four steps:
 
 ## P6. Peer model
 
-- Kotlin `NativePeer : Closeable`, opaque `Long` handle, handle registry of `shared_ptr`.
-- In-flight reference counting; `close()` idempotent; use-after-close throws `IllegalStateException`.
-- Safety net behind an interface: `Cleaner` on API 33+, `PhantomReference` + `ReferenceQueue` fallback for API 26; leak
-  warning in debug.
-- Race tests: `close()` concurrent with in-flight calls, double `close()`, use after close.
+Design: [ADR-0009](adr/0009-peers.md).
 
-**Exit criteria:** no crash under stress test (TSan clean); destruction happens exactly once, after the last in-flight
-call.
+| Step | Item                                                                                                                         | Status |
+|------|------------------------------------------------------------------------------------------------------------------------------|--------|
+| P6.1 | `PeerTable`: handles that are never reused, type tag, `onClose()` hook outside every lock, `close()` idempotent                | `[x]`  |
+| P6.2 | `Peer<T>` as a native parameter and result (row of `Convert<T>`), `makePeer`, the native `NativePeerNatives.close`              | `[x]`  |
+| P6.3 | Kotlin `NativePeer : Closeable`, `PeerState`, `LeakGuard` (`Cleaner` on API 33+, `PhantomReference` + `ReferenceQueue` below)   | `[x]`  |
+| P6.4 | Race tests: `close()` against a blocked call and against many callers, ThreadSanitizer; the example module `p6_demo`            | `[~]` tests done, example not started |
+| P6.5 | Native memory given to Kotlin as a `ByteBuffer`, kept alive by the buffer (ADR-0009 §9)                                         | `[ ]`  |
+
+**Exit criteria:** no crash under stress test (TSan clean); the resource is released at once by `close()`, destruction
+happens exactly once, after the last in-flight call. Met on host (peer tests, ThreadSanitizer for the table). The Kotlin
+side is written but not yet compiled or run in this environment: it needs the Android build.
 
 ## P7. Callbacks and subscriptions
 

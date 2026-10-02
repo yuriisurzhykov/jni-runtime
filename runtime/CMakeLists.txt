@@ -9,6 +9,7 @@ add_library(jnirt_runtime STATIC
         src/init.cpp
         src/kotlin_hints.cpp
         src/log_forward.cpp
+        src/peer.cpp
         src/ref.cpp
         src/registry.cpp
         src/selfcheck.cpp
