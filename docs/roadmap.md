@@ -167,7 +167,7 @@ Design: [ADR-0009](adr/0009-peers.md).
 | P6.2 | `Peer<T>` as a native parameter and result (row of `Convert<T>`), `makePeer`, the native `NativePeerNatives.close`              | `[x]`  |
 | P6.3 | Kotlin `NativePeer : Closeable`, `PeerState`, `LeakGuard` (`Cleaner` on API 33+, `PhantomReference` + `ReferenceQueue` below)   | `[x]`  |
 | P6.4 | Race tests: `close()` against a blocked call and against many callers, ThreadSanitizer; the example module `p6_demo`            | `[~]` tests done, example not started |
-| P6.5 | Native memory given to Kotlin as a `ByteBuffer`, kept alive by the buffer (ADR-0009 §9)                                         | `[ ]`  |
+| P6.5 | `NativeBuffer`: native memory given to Kotlin as a direct `ByteBuffer`, released when the buffer is collected (ADR-0009 §9)     | `[x]`  |
 
 **Exit criteria:** no crash under stress test (TSan clean); the resource is released at once by `close()`, destruction
 happens exactly once, after the last in-flight call. Met on host (peer tests, ThreadSanitizer for the table). The Kotlin

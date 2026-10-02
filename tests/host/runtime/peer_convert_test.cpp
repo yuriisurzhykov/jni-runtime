@@ -2,6 +2,7 @@
 // against a real JVM (-Xcheck:jni). The table itself is tested in peer_table_test.cpp.
 
 #include <jnirt/runtime/env.h>
+#include <jnirt/runtime/native_buffer.h>
 #include <jnirt/runtime/peer.h>
 #include <jnirt/runtime/registry.h>
 #include <jnirt/runtime/signature.h>
@@ -14,6 +15,7 @@
 #include "test_jvm.h"
 
 #include <atomic>
+#include <chrono>
 #include <condition_variable>
 #include <mutex>
 #include <stdexcept>
@@ -87,6 +89,39 @@ namespace {
 
     void block(JNIEnv *, jclass, Peer<Cam> self) { self->block(); }
 
+    NativeBuffer frame(JNIEnv *, jclass, jint size, jint fill) {
+        NativeBuffer buffer = NativeBuffer::allocate(static_cast<std::size_t>(size));
+        for (jint i = 0; i < size; ++i) buffer.data()[i] = static_cast<std::byte>(fill);
+        return buffer;
+    }
+
+    NativeBuffer nameBytes(JNIEnv *, jclass, Peer<Cam> self) {
+        return NativeBuffer::copyOf(self->name().data(), self->name().size());
+    }
+
+    // Memory that says when it is released.
+    struct Counted {
+        static inline std::atomic<int> alive{0};
+        std::byte bytes[16]{};
+
+        Counted() { ++alive; }
+
+        ~Counted() { --alive; }
+    };
+
+    NativeBuffer countedFrame(JNIEnv *, jclass) {
+        auto memory = std::make_shared<Counted>();
+        return NativeBuffer(memory, memory->bytes, sizeof(memory->bytes));
+    }
+
+    jint countedAlive(JNIEnv *, jclass) { return Counted::alive; }
+
+    NativeBuffer emptyFrame(JNIEnv *, jclass) { return NativeBuffer(); }
+
+    struct ByteBufferJ : JavaClass<ByteBufferJ> {
+        static constexpr const char *name = "java/nio/ByteBuffer";
+    };
+
     struct PeersJ : JavaClass<PeersJ> {
         static constexpr const char *name = "jnirt/test/Peers";
 
@@ -96,6 +131,13 @@ namespace {
         static inline StaticMethod<PeersJ, std::string(jlong)> nameOf{"nameOf"};
         static inline StaticMethod<PeersJ, std::string(jlong)> nameOfOther{"nameOfOther"};
         static inline StaticMethod<PeersJ, void(jlong)> block{"block"};
+        static inline StaticMethod<PeersJ, ByteBufferJ(jint, jint)> frame{"frame"};
+        static inline StaticMethod<PeersJ, ByteBufferJ(jlong)> nameBytes{"nameBytes"};
+        static inline StaticMethod<PeersJ, ByteBufferJ()> countedFrame{"countedFrame"};
+        static inline StaticMethod<PeersJ, jint()> countedAlive{"countedAlive"};
+        static inline StaticMethod<PeersJ, ByteBufferJ()> emptyFrame{"emptyFrame"};
+        static inline StaticMethod<PeersJ, jboolean()> collectUntilGone{"collectUntilGone"};
+        static inline StaticMethod<PeersJ, void()> gc{"gc"};
     };
 
     // What NativePeer.close() calls: the native that init() registers itself (the Java stand-in is
@@ -116,7 +158,13 @@ namespace {
                 .native<&openEmpty>("openEmpty")
                 .native<&nameOf>("nameOf")
                 .native<&nameOfOther>("nameOfOther")
-                .native<&block>("block");
+                .native<&block>("block")
+                .native<&frame>("frame")
+                .native<&nameBytes>("nameBytes")
+                .native<&countedFrame>("countedFrame")
+                .native<&countedAlive>("countedAlive")
+                .native<&emptyFrame>("emptyFrame");
+        r.add<ByteBufferJ>(); // described only so that it can be a result type
     }
 
     class PeerConvertTest : public ::testing::Test {
@@ -148,6 +196,14 @@ namespace {
                 return e.what();
             }
             return "no exception";
+        }
+
+        // The memory of a ByteBuffer is in the table until the garbage collector takes the buffer: ask for it.
+        void collectBuffers() {
+            for (int i = 0; i < 200 && PeerTable::size() > openBefore; ++i) {
+                PeersJ::gc(env);
+                std::this_thread::sleep_for(std::chrono::milliseconds(50));
+            }
         }
 
         static bool contains(const std::string &whole, const std::string &part) {
@@ -229,5 +285,58 @@ namespace {
         EXPECT_TRUE(contains(failure, "java.lang.IllegalStateException")) << failure;
         EXPECT_TRUE(contains(failure, "camera closed")) << failure;
         // TearDown: the object is gone, the handle is gone.
+    }
+    // ---- NativeBuffer: native memory as a direct ByteBuffer (ADR-0009 §9) ----
+
+    static_assert(std::string_view(descriptor<NativeBuffer>) == "Ljava/nio/ByteBuffer;");
+    static_assert(std::string_view(signature<NativeBuffer(jint, jint)>) == "(II)Ljava/nio/ByteBuffer;");
+
+    TEST_F(PeerConvertTest, ANativeBufferIsADirectByteBufferOverTheSameBytes) {
+        {
+            LocalRef<jobject> buffer = PeersJ::frame(env, 5, 0x7A);
+            ASSERT_TRUE(buffer);
+            auto *bytes = static_cast<unsigned char *>(env->GetDirectBufferAddress(buffer.get()));
+            ASSERT_NE(bytes, nullptr) << "not a direct buffer";
+            EXPECT_EQ(env->GetDirectBufferCapacity(buffer.get()), 5);
+            for (int i = 0; i < 5; ++i) EXPECT_EQ(bytes[i], 0x7A);
+        }
+        collectBuffers();
+    }
+
+    TEST_F(PeerConvertTest, ABufferOfNoBytesIsAnEmptyByteBuffer) {
+        {
+            LocalRef<jobject> buffer = PeersJ::emptyFrame(env);
+            ASSERT_TRUE(buffer);
+            EXPECT_EQ(env->GetDirectBufferCapacity(buffer.get()), 0);
+        }
+        collectBuffers();
+    }
+
+    TEST_F(PeerConvertTest, TheMemoryOutlivesThePeerThatMadeIt) {
+        const jlong handle = PeersJ::open(env, "garage");
+        {
+            LocalRef<jobject> buffer = PeersJ::nameBytes(env, handle);
+            NativePeerNativesCallJ::close(env, handle); // the camera is gone, the frame is not
+            EXPECT_EQ(Cam::alive, 0);
+            const char *bytes = static_cast<const char *>(env->GetDirectBufferAddress(buffer.get()));
+            ASSERT_NE(bytes, nullptr);
+            EXPECT_EQ(std::string(bytes, 6), "garage");
+        }
+        collectBuffers();
+    }
+
+    TEST_F(PeerConvertTest, TheMemoryIsReleasedWhenTheGarbageCollectorTakesTheBuffer) {
+        ASSERT_EQ(Counted::alive, 0);
+        {
+            LocalRef<jobject> buffer = PeersJ::countedFrame(env);
+            ASSERT_TRUE(buffer);
+            EXPECT_EQ(Counted::alive, 1);
+            System_gc_while_held:
+            EXPECT_EQ(PeersJ::countedAlive(env), 1) << "alive while Kotlin holds the buffer";
+        }
+        // The local reference is gone: only the collector keeps the memory now.
+        EXPECT_TRUE(PeersJ::collectUntilGone(env) == JNI_TRUE) << "the memory was never released";
+        EXPECT_EQ(Counted::alive, 0);
+        collectBuffers();
     }
 } // namespace

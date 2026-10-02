@@ -12,3 +12,6 @@
 
 # jnirt::init registers NativePeerNatives.close itself (ADR-0009), and NativePeer.close() calls it.
 -keep class jnirt.NativePeerNatives { *; }
+
+# jnirt::NativeBuffer calls NativeBuffers.watch from native code (ADR-0009 §9).
+-keep class jnirt.NativeBuffers { *; }

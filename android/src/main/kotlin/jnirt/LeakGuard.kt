@@ -49,7 +49,7 @@ object LeakGuards {
     }
 
     internal fun closeForgotten(className: String, state: PeerState) {
-        if (state.release() && warnOnLeak) {
+        if (state.release() && warnOnLeak && !state.quiet) {
             warning("$className was not closed: call close() (use { } does it). The leak guard closed it.")
         }
     }

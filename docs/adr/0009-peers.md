@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed. Implementation: roadmap P6.1 to P6.4 (P6.5 is a later step, see §9). Design discussion:
+Proposed. Implementation: roadmap P6.1 to P6.5. Design discussion:
 `design/p6-design.md` in the project files.
 
 ## Context
@@ -161,13 +161,36 @@ second set of rules.
 These are programmer errors in the sense of ADR-0002: always thrown, release and debug alike. No `(file:line)` is added
 to the ones jnirt raises, as for the conversion errors (ADR-0008 §8).
 
-### 9. Not in P6.1 to P6.4
+### 9. Native memory given to Kotlin as a ByteBuffer (P6.5)
 
-- **Native memory given to Kotlin as a `ByteBuffer` (P6.5).** A block of memory is held by a `shared_ptr<uint8_t[]>`,
-  registered in the same table as a peer **without** a hook, and Kotlin ties its life to the `ByteBuffer` with a `Cleaner`.
-  Closing the peer that produced the buffer does not invalidate it: it stays valid while Kotlin holds it. Until P6.5 native
-  memory is not given out; the other direction (Kotlin allocates, native borrows for one call) is the `DirectBuffer`
-  parameter of P5 and needs nothing new.
+For data that is big and frequent (the frames of a video stream) copying into a `ByteArray` costs more than it should.
+A native function may return a `NativeBuffer` (`<jnirt/runtime/native_buffer.h>`), and Kotlin gets a direct
+`java.nio.ByteBuffer` over the same bytes:
+
+```cpp
+NativeBuffer frame(JNIEnv *, jclass, Peer<Camera> self) { return self->nextFrame(); }   // Kotlin: ByteBuffer
+```
+
+- A `NativeBuffer` is `{ shared_ptr<void> owner, data, size }`: `owner` keeps the bytes alive (a vector, a pool slot, the
+  camera), `NativeBuffer::allocate(size)` and `copyOf(bytes, size)` make the common cases.
+- The memory is registered in the table of peers, as a peer without a hook, and `NativeBuffers.watch(buffer, handle)`
+  (Kotlin, called from native) ties the handle to the buffer with the same `LeakGuard` that watches forgotten peers. The
+  guard closes the handle when the garbage collector collects the `ByteBuffer`, and it does not warn: that is how
+  these buffers end.
+- **Closing the peer that made the frame does not invalidate it.** A frame lives while Kotlin holds it. A library that
+  wants the frame to keep its camera alive passes the camera as `owner`.
+- **One buffer per frame.** Simple, and the memory is released by itself. A shared ring buffer with slices is a
+  possible later optimisation, to be chosen after measuring on a real stream, not before. Nothing around it changes.
+- Result only, like `Peer<T>` (a handle is made on the way out): a static_assert for a parameter, an `std::optional`,
+  a collection, a field, a call into Java. A `ByteBuffer` that Kotlin gives to native is read with `DirectBuffer`
+  (ADR-0008), which borrows it for one call.
+- More than 2 GiB - 1 bytes is an `IllegalArgumentException` (a `ByteBuffer` cannot hold more). An empty buffer is
+  allowed. If the `ByteBuffer` cannot be created, the handle is closed again and the error goes to Kotlin.
+- The bytes are big-endian when read as `Int` or `Long`, like every `ByteBuffer`; Kotlin changes that with `order()`.
+  Kotlin must not write into a frame that native code still writes to: shared memory, shared rules.
+
+### 10. Not in P6
+
 - **Typed object parameter for a Kotlin listener (`Param<ListenerJ>`)**: P7.
 
 ## Consequences
@@ -187,7 +210,7 @@ to the ones jnirt raises, as for the conversion errors (ADR-0008 §8).
 - ADR-0001 §2.2: "`close()` marks the peer closed" becomes "marks the peer closed and calls its `onClose` hook, so the
   resource is released at once; the object is destroyed when the last call releases it". §2.3 stands.
 - ADR-0008 "Not in this step": the typed object parameter of the peer is `Peer<T>` (this ADR); `NewDirectByteBuffer` over
-  native memory moves to P6.5 (§9).
+  native memory is `NativeBuffer` (§9).
 
 ## Tests
 
@@ -197,5 +220,6 @@ to the ones jnirt raises, as for the conversion errors (ADR-0008 §8).
 | the hook runs once, outside the lock, before the destructor; the destructor runs once, after the last call | `peer_table_test` |
 | `close()` against a blocked call and against many callers, ThreadSanitizer clean              | `peer_table_test`        |
 | `Peer<T>` as a parameter and a result of `native<&fn>`; a throwing constructor gives no handle; a closed handle is `IllegalStateException` | `peer_convert_test` (real JVM) |
-| `Peer<T>` in a collection, optional or field does not compile                                 | `compile_fail/`          |
+| `Peer<T>` or `NativeBuffer` in a collection, optional, field or call into Java does not compile; `NativeBuffer` as a parameter | `compile_fail/` |
+| `NativeBuffer`: same bytes in Kotlin, empty buffer, memory outlives its peer, memory released after the garbage collector takes the buffer | `peer_convert_test` (real JVM) |
 | `NativePeer`: `close` idempotent, `IllegalStateException` after `close`, safety net through a fake `LeakGuard` | `android/src/test`       |

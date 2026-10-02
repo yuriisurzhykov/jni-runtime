@@ -60,10 +60,11 @@ abstract class NativePeer protected constructor(handle: Long) : Closeable {
 }
 
 /**
- * What is needed to close a peer, apart from the peer itself: a [LeakGuard] holds this, never the peer, or the peer
+ * What is needed to close a peer, apart from the peer itself (`quiet`: the guard does not warn when it closes it, as
+ * for the memory of a `ByteBuffer`, which is collected as a matter of course): a [LeakGuard] holds this, never the peer, or the peer
  * would never become unreachable.
  */
-class PeerState internal constructor(handle: Long) {
+class PeerState internal constructor(handle: Long, internal val quiet: Boolean = false) {
 
     private val value = AtomicLong(handle)
 
