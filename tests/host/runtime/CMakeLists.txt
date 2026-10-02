@@ -50,3 +50,6 @@ add_executable(jnirt_convert_bench convert_bench.cpp)
 target_link_libraries(jnirt_convert_bench PRIVATE jnirt::runtime jnirt::options ${JAVA_JVM_LIBRARY})
 target_compile_definitions(jnirt_convert_bench PRIVATE JNIRT_TEST_CLASSPATH="${JNIRT_TEST_CLASSES_DIR}")
 add_dependencies(jnirt_convert_bench jnirt_test_classes)
+
+# A Java listener called from native threads (ADR-0010).
+jnirt_add_jvm_test(runtime_listener_test listener_test.cpp)

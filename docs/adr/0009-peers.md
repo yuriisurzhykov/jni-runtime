@@ -142,7 +142,7 @@ interface LeakGuard { fun watch(owner: Any, state: PeerState) }
   forbidden.
 - The implementation is picked once at startup and can be replaced, so tests do not wait for a GC.
 
-### 7. Subscriptions are peers (P7)
+### 7. Subscriptions are peers (P7, ADR-0010)
 
 A `Subscription` (ADR-0001 §5) is a peer on the same table: its native part is the registration of a listener, its
 `onClose` unregisters it. An owner closes its subscriptions from its own `onClose`. There is no second table and no
@@ -181,8 +181,8 @@ NativeBuffer frame(JNIEnv *, jclass, Peer<Camera> self) { return self->nextFrame
   wants the frame to keep its camera alive passes the camera as `owner`.
 - **One buffer per frame.** Simple, and the memory is released by itself. A shared ring buffer with slices is a
   possible later optimisation, to be chosen after measuring on a real stream, not before. Nothing around it changes.
-- Result only, like `Peer<T>` (a handle is made on the way out): a static_assert for a parameter, an `std::optional`,
-  a collection, a field, a call into Java. A `ByteBuffer` that Kotlin gives to native is read with `DirectBuffer`
+- A result of a native, or (ADR-0010 §3) an argument of a call into Java; `Peer<T>` is a result only. A static_assert for
+  a parameter, an `std::optional`, a collection, a field. A `ByteBuffer` that Kotlin gives to native is read with `DirectBuffer`
   (ADR-0008), which borrows it for one call.
 - More than 2 GiB - 1 bytes is an `IllegalArgumentException` (a `ByteBuffer` cannot hold more). An empty buffer is
   allowed. If the `ByteBuffer` cannot be created, the handle is closed again and the error goes to Kotlin.

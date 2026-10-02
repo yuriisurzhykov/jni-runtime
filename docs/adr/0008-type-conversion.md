@@ -287,7 +287,7 @@ the real digits. The rule of the roadmap stays: coarse calls.
 | What                                                         | When / why                                                                         |
 |--------------------------------------------------------------|------------------------------------------------------------------------------------|
 | `NewDirectByteBuffer` over native memory, ownership of buffers | P6.5 (ADR-0009 §9): who keeps the memory alive                                   |
-| typed object parameter instead of `jobject` + explicit Java type (`Param<ListenerJ>`) | peers: `Peer<T>` is done (ADR-0009 §4); listeners: P7             |
+| typed object parameter instead of `jobject` + explicit Java type (`Param<ListenerJ>`) | peers: `Peer<T>` is done (ADR-0009 §4); listeners: `Listener<J>`, ADR-0010 |
 | `suspend`, `Flow`, lambdas as `std::function`                | P7                                                                                 |
 | `enum class` conversion, `Set`, `std::chrono`, `std::variant` | no real need yet; a row can be added by the library, `Set` is the same mechanism as `List` |
 | `Get<Type>ArrayElements`, `GetStringChars`                   | deliberately not offered (§3, §5)                                                  |

@@ -55,7 +55,7 @@ Draft
 - 3.5 Thread affinity is the **library's** responsibility. Kotlin APIs accept an `Executor` (or a `Handler`) at
   subscription time. The `Looper` is captured **at subscription time**, never inside the callback. Each callback
   documents
-  its thread in KDoc.
+  its thread in KDoc. The executor is mandatory, with no default (ADR-0010 §5).
 
 ## 4. References
 
@@ -69,7 +69,8 @@ Draft
 
 - 5.1 A callback belongs to a **subscription**, not directly to an object.
 - 5.2 `subscribe()` returns a `Subscription` (`Closeable`). Closing the owner closes its subscriptions.
-- 5.3 Native code holds a **weak global ref** to the Java listener and checks liveness before each call.
+- 5.3 Native code holds a **strong global ref** to the Java listener while the subscription is open, and checks the
+  subscription's `active` flag before each call. (A weak reference loses lambdas to the garbage collector: ADR-0010 §2.)
 - 5.4 Unsubscribing during dispatch is safe: dispatch iterates over a snapshot.
 - 5.5 After every call into Java, `ExceptionCheck` is mandatory.
 

@@ -31,6 +31,7 @@ add_custom_command(
 )
 add_custom_target(jnirt_test_classes DEPENDS ${JNIRT_TEST_CLASSES_DIR}/.compiled)
 
+find_package(Threads REQUIRED)
 add_subdirectory(support)
 add_subdirectory(runtime)
 

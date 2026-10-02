@@ -131,7 +131,7 @@ namespace jnirt {
         // `actual` is converted the way a function argument would be: 1 to jint, "text" to std::string.
         template<class A, class Actual>
         auto marshal(JNIEnv *env, Actual &&actual) {
-            static_assert(!PeerFlag<RowOf<A> >::value,
+            static_assert(!PeerFlag<RowOf<A> >::value || ArgumentFlag<RowOf<A> >::value,
                           "jnirt: a Peer is a native parameter or result and nothing else: giving one to Java would "
                           "make a new handle for the same object on every call (ADR-0009 §4).");
             ArgOf<A> converted = std::forward<Actual>(actual);
