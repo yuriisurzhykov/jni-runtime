@@ -141,6 +141,9 @@ namespace jnirt {
                       "jnirt: std::optional of a raw JNI reference (jstring, jobject...): the reference is "
                       "already nullable. Use it directly, or std::optional<std::string> for a converted value.");
         static_assert(!detail::NullFlag<Inner>::value, "jnirt: std::optional<std::optional<T>> has no Java meaning");
+        static_assert(!detail::PeerFlag<Inner>::value,
+                      "jnirt: a Peer can not be inside std::optional: a Peer is a native parameter or result and nothing "
+                      "else (ADR-0009 §4). An empty result is an error, not a null.");
 
     public:
         // A number crosses as its box (Integer); a reference crosses as itself, null meaning nothing.

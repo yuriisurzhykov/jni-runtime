@@ -148,6 +148,19 @@ namespace jnirt::detail {
         // (priority as in android.util.Log, tag, message)
         static inline StaticMethod<NativeLogBridgeJ, void(jint, jstring, jstring)> log{"log"};
     };
+
+    // Ties native memory to a ByteBuffer (android/.../NativeBuffers.kt): `watch` closes the handle when the buffer is
+    // collected.
+    struct NativeBuffersJ : JavaClass<NativeBuffersJ> {
+        static constexpr const char *name = "jnirt/NativeBuffers";
+
+        static inline StaticMethod<NativeBuffersJ, void(Object, jlong)> watch{"watch"};
+    };
+
+    // Where NativePeer.close() goes (android/.../NativePeer.kt). `close` is native: init registers it.
+    struct NativePeerNativesJ : JavaClass<NativePeerNativesJ> {
+        static constexpr const char *name = "jnirt/NativePeerNatives";
+    };
 } // namespace jnirt::detail
 
 #endif //JNIRT_RUNTIME_RUNTIME_CLASSES_H

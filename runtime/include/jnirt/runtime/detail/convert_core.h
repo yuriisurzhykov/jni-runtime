@@ -12,6 +12,8 @@
 //   static ... toJava(JNIEnv *, const Value &)                 Jni for a number, LocalRef<Jni> for a reference
 //   static constexpr bool handle      (optional) true: the value is a raw JNI reference, not converted
 //   static constexpr bool acceptsNull (optional) true: fromJava gets null (std::optional)
+//   static constexpr bool ownsPeer   (optional) true: the value is a Peer (peer.h): a handle is made on the way out, so
+//                                     it is good for a native parameter or result, not for a field, a collection or a call
 //   static constexpr bool borrowsFromJava (optional) true: the value points into the Java object (DirectBuffer), so
 //                                     it is good for a native parameter, not for the result of a call
 //
@@ -94,6 +96,14 @@ namespace jnirt {
 
         template<class Row>
         struct BorrowFlag<Row, std::void_t<decltype(Row::borrowsFromJava)> > : std::bool_constant<Row::borrowsFromJava> {
+        };
+
+        template<class Row, class = void>
+        struct PeerFlag : std::false_type {
+        };
+
+        template<class Row>
+        struct PeerFlag<Row, std::void_t<decltype(Row::ownsPeer)> > : std::bool_constant<Row::ownsPeer> {
         };
 
         template<class Row, class = void>

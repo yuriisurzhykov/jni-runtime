@@ -35,6 +35,11 @@ target_include_directories(runtime_domains_test PRIVATE ${PROJECT_SOURCE_DIR}/ru
 
 jnirt_add_jvm_test(runtime_log_bridge_test log_bridge_test.cpp)
 
+# The table of peers is plain C++ (no JVM); the Peer<T> row against a real JVM is peer_convert_test.
+jnirt_add_test(runtime_peer_table_test peer_table_test.cpp)
+target_link_libraries(runtime_peer_table_test PRIVATE jnirt::runtime Threads::Threads)
+jnirt_add_jvm_test(runtime_peer_convert_test peer_convert_test.cpp)
+
 jnirt_add_jvm_test(runtime_convert_test convert_test.cpp)
 jnirt_add_jvm_test(runtime_convert_array_test convert_array_test.cpp)
 jnirt_add_jvm_test(runtime_convert_collection_test convert_collection_test.cpp)

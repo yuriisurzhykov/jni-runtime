@@ -109,6 +109,9 @@ namespace jnirt {
             static_assert(!BorrowFlag<RowOf<T> >::value,
                           "jnirt: this value points into a Java object that may be collected (a DirectBuffer); it can "
                           "not be an element of a collection.");
+            static_assert(!PeerFlag<RowOf<T> >::value,
+                          "jnirt: a Peer can not be an element of a collection: a Peer is a native parameter or result "
+                          "and nothing else (ADR-0009 §4).");
         }
 
         // An element, key or value, read as T. `index` is for the message.

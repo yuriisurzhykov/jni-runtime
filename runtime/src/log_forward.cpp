@@ -1,9 +1,10 @@
-// Native log lines to Kotlin (NativeLogBridge), and the one native method jnirt registers itself. See
+// Native log lines to Kotlin (NativeLogBridge), and the native methods jnirt registers itself. See
 // docs/adr/0007-exceptions-entry-and-log-sink.md.
 //
 // Created by Yurii Surzhykov on 10/1/26.
 
 #include <jnirt/runtime/env.h>
+#include <jnirt/runtime/peer.h>
 #include <jnirt/runtime/registry.h>
 #include <jnirt/support/assert.h>
 #include <jnirt/support/logging/log.h>
@@ -39,6 +40,10 @@ namespace jnirt::detail {
                           static_cast<int>(priority));
             logging::setLevel(levelOf(priority));
         }
+
+        // NativePeerNatives.close(handle): what NativePeer.close() calls (ADR-0009). Closing a handle that is closed
+        // already is not an error.
+        void closePeer(JNIEnv *, jclass, jlong handle) { PeerTable::close(handle); }
     } // namespace
 
     bool forwardLogToJava(logging::Level level, const char *tag, const char *message) noexcept {
@@ -75,6 +80,7 @@ namespace jnirt::detail {
     std::vector<ClassEntry> runtimeNatives() {
         Registry registry;
         registry.add<NativeLogBridgeJ>().native<&setNativeLevel>("setNativeLevel");
+        registry.add<NativePeerNativesJ>().native<&closePeer>("close");
         return RegistryAccess::classes(registry);
     }
 } // namespace jnirt::detail
