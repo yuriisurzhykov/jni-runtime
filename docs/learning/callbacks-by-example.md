@@ -59,7 +59,7 @@ return Subscription(this, call { nativeSubscribe(it, forNative) }, delivery)
 | `ListenerSet` | `CopyOnWriteArrayList<(Event) -> Unit>` with an `active` flag per entry. `emit` walks a snapshot, so a listener may unsubscribe itself, or subscribe another, during the walk |
 | `Listener<J>` | a strong reference to your listener (`GlobalRef`), plus "call it from any thread": attach the thread, open a local frame, call, log a Java exception instead of throwing |
 | `Subscription` | `Closeable` / `Disposable`: closing it takes the listener out. It is a peer (P6), so it is idempotent and never waits |
-| `Delivery` | `Handler.post` with a "still open?" check, before posting and again on the target thread. `postLatest` is `Flow.conflate()` |
+| `Delivery` | `Handler.post` with a "still open?" check, before posting and again on the target thread. `postLatest` is `Flow.conflate()`, `postBuffered(n)` is `buffer(n, DROP_OLDEST)` |
 
 Why the reference is **strong**: with a weak one, `camera.subscribe { ... }` would be collected at once (nobody else holds the
 lambda) and the events would silently stop. The price is the usual one for any Android listener: unsubscribe in
@@ -81,6 +81,16 @@ It never waits for a running callback (the callback may be waiting for the very 
 3. A worker thread does not own its object; the destructor joins it, and checks it is not running on that thread.
 4. The `Executor` is a required parameter of `subscribe`. A direct executor (`Executor { it.run() }`) runs your listener
    on the camera thread; it must not wait for a thread that may be closing the camera.
+
+## A slow consumer and native memory
+
+Dropping frames is easy; freeing their memory is the trap. A direct `ByteBuffer` over native memory looks like 24 bytes to the
+garbage collector, so a pile of dropped 1 MiB frames does not make it run. We measured 3000 MiB of native memory this way
+(`frame_memory_bench`). The runtime counts the live bytes of `NativeBuffer`s and asks for `System.gc()` above 64 MiB (at most
+once per 200 ms); the same test peaks at 83 MiB. In Kotlin terms: `Bitmap` before API 26, whose pixels lived outside the heap.
+
+`Camera.frames()` in `examples/jni-modules-p7` is the Flow version: `callbackFlow { subscribe(...); awaitClose { close() } }`.
+Collect it with `.take(3)` and the subscription is closed for you.
 
 ## What to try
 

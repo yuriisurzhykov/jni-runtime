@@ -45,6 +45,13 @@ namespace jnirt::detail {
         static inline Constructor<OutOfMemoryErrorJ, void(jstring)> create;
     };
 
+    // System.gc(): asked for when the native memory of ByteBuffers piles up (native_buffer.cpp).
+    struct SystemJ : JavaClass<SystemJ> {
+        static constexpr const char *name = "java/lang/System";
+
+        static inline StaticMethod<SystemJ, void()> gc{"gc"};
+    };
+
     // The boxes of the numbers: std::optional<jint> is an Integer (convert.cpp).
     struct BooleanJ : JavaClass<BooleanJ> {
         static constexpr const char *name = "java/lang/Boolean";

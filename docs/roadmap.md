@@ -183,14 +183,14 @@ Design: [ADR-0010](adr/0010-callbacks-and-subscriptions.md).
 | P7.2 | `Listener<J>`: strong `GlobalRef` parameter, `call` from any thread (attach, local frame, `JavaException` logged); `NativeBuffer` as an argument of a call into Java | `[x]`  |
 | P7.3 | `jnirt::Subscription` peer, `makeSubscription`; the owner's `onClose()` closes its `ListenerSet`                                   | `[x]`  |
 | P7.4 | Kotlin `Delivery` (mandatory `Executor` captured at subscription, `post` / `postLatest`), `Subscription`, `NativePeer.adopt` / `forget`, KDoc thread contract | `[x]` JUnit green on the host, not run on Android |
-| P7.5 | Example module on a device (`p7_demo`), `callbackFlow` adapter, bounded queue, measure the native memory of dropped frames (ADR-0010 §9) | `[ ]`  |
+| P7.5 | Bounded queue (`postBuffered`), `callbackFlow` adapter (example), measured native memory of dropped frames and a fix (live-bytes counter, `System.gc()` above 64 MiB), example `jni-modules-p7` | `[x]` host-check green; **not run on a device** |
 
 Not done on purpose (ADR-0010 §10): the reverse direction (C++ giving Kotlin something callable), `Function1` / `suspend` on
 the border, a weak listener.
 
 **Exit criteria:** reentrancy tests (subscribe/unsubscribe inside callbacks), owner destroyed during dispatch, no
 deadlock under stress. Met on host for the list (P7.1: all of it under TSan) and for Java listeners (P7.2/P7.3, real JVM); the
-Kotlin side runs under JUnit on the host. A run on a device is P7.5.
+Kotlin side runs under JUnit on the host. The example runs on the host JVM; a run on a device is still to be done by hand.
 
 ## P8. Release hardening
 

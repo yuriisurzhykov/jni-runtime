@@ -90,6 +90,54 @@ class SubscriptionTest {
     }
 
     @Test
+    fun postBufferedKeepsTheNewestEventsAndRunsOnePerTurn() {
+        val queue = Queue()
+        val seen = mutableListOf<Int>()
+        val delivery = Delivery(queue)
+        (1..5).forEach { n -> delivery.postBuffered(3) { seen += n } }
+        assertEquals(1, queue.tasks.size)
+        queue.tasks.removeFirst().run()                 // one turn: one event, and the next turn is scheduled
+        assertEquals(listOf(3), seen)
+        assertEquals(1, queue.tasks.size)
+        queue.runAll()
+        assertEquals(listOf(3, 4, 5), seen)
+        delivery.postBuffered(3) { seen += 6 }          // the queue is idle again
+        queue.runAll()
+        assertEquals(listOf(3, 4, 5, 6), seen)
+    }
+
+    @Test
+    fun postBufferedDoesNotStallAfterABlockThrew() {
+        val queue = Queue()
+        val seen = mutableListOf<Int>()
+        val delivery = Delivery(queue)
+        delivery.postBuffered(3) { error("listener bug") }
+        delivery.postBuffered(3) { seen += 2 }
+        try {
+            queue.tasks.removeFirst().run()
+            org.junit.Assert.fail("the exception must reach the executor")
+        } catch (expected: IllegalStateException) {
+        }
+        queue.runAll()
+        assertEquals(listOf(2), seen)
+        delivery.postBuffered(3) { seen += 3 }
+        queue.runAll()
+        assertEquals(listOf(2, 3), seen)
+    }
+
+    @Test
+    fun shutdownDropsTheBufferedEvents() {
+        val queue = Queue()
+        val seen = mutableListOf<Int>()
+        val delivery = Delivery(queue)
+        delivery.postBuffered(3) { seen += 1 }
+        delivery.shutdown()
+        delivery.postBuffered(3) { seen += 2 }
+        queue.runAll()
+        assertTrue(seen.isEmpty())
+    }
+
+    @Test
     fun closingASubscriptionDropsItsQueuedEventsAndClosesItsHandle() {
         val queue = Queue()
         val seen = mutableListOf<Int>()

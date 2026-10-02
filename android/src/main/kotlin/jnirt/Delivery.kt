@@ -18,7 +18,7 @@ import java.util.concurrent.atomic.AtomicReference
  * }
  * ```
  *
- * [post] never waits and never runs the block on the calling thread. After [shutdown] (what `Subscription.close()` does
+ * [post] (and [postLatest], [postBuffered]) never waits and never runs the block on the calling thread. After [shutdown] (what `Subscription.close()` does
  * first) a block that was waiting in the executor is dropped when its turn comes. So on the thread of a serial executor
  * (the main thread, a `Handler`, a single-thread executor) nothing runs after `close()` returned there; from another
  * thread a block that is already running may finish later.
@@ -32,6 +32,8 @@ class Delivery(private val executor: Executor) {
     private val open = AtomicBoolean(true)
     private val pending = AtomicReference<(() -> Unit)?>(null)
     private val scheduled = AtomicBoolean(false)
+    private val queue = ArrayDeque<() -> Unit>()    // postBuffered; guarded by itself
+    private var draining = false                    // a runOne is scheduled or running; guarded by queue
 
     /**
      * Runs [block] on the executor, unless the subscription is closed by then. Every event is delivered, in the order of
@@ -59,10 +61,43 @@ class Delivery(private val executor: Executor) {
     }
 
     /**
+     * Like [post], but at most [limit] events wait: when the executor is busy and a new event finds the queue full, the
+     * oldest one is dropped (a bounded buffer that keeps the newest, `Flow.buffer(limit, DROP_OLDEST)`). One block runs per
+     * turn of the executor, so a long queue does not hold the main thread.
+     * */
+    fun postBuffered(limit: Int, block: () -> Unit) {
+        require(limit > 0) { "limit must be positive, got $limit" }
+        if (!open.get()) return
+        val schedule = synchronized(queue) {
+            if (queue.size >= limit) queue.removeFirst()
+            queue.addLast(block)
+            !draining.also { draining = true }
+        }
+        if (schedule) executor.execute(::runOne)
+    }
+
+    private fun runOne() {
+        val next = synchronized(queue) { queue.removeFirstOrNull() }
+        try {
+            if (next != null && open.get()) next()
+        } finally {
+            scheduleNext()                          // also when the block threw: the queue must not stall
+        }
+    }
+
+    private fun scheduleNext() {
+        val more = synchronized(queue) {
+            (queue.isNotEmpty()).also { if (!it) draining = false }
+        }
+        if (more) executor.execute(::runOne)
+    }
+
+    /**
      * No block runs from now on, also those already waiting in the executor.
      * */
     fun shutdown() {
         open.set(false)
         pending.set(null)
+        synchronized(queue) { queue.clear() }
     }
 }

@@ -227,4 +227,27 @@ namespace {
         closeHandle(env, subscription);
         closeHandle(env, source);
     }
+
+    // ADR-0010 §9: frames that are dropped at once pile up as native memory the collector is not told about; past the
+    // threshold the runtime asks for a collection. (Without it this loop holds 60 MiB until the end, with no limit in sight.)
+    TEST_F(ListenerTest, DroppedFramesDoNotPileUpNativeMemory) {
+        const jlong source = SubsJ::open(env);
+        auto recorder = SubsJ::newRecorder(env);
+        const jlong subscription = SubsJ::subscribe(env, source, recorder.get());
+        detail::setBufferGcThreshold(4 * 1024 * 1024);
+        const long before = detail::forcedCollections();
+        for (int i = 0; i < 60; ++i) {
+            SubsJ::emitFrame(env, source, 1024 * 1024, i);
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        }
+        EXPECT_GT(detail::forcedCollections(), before);
+        for (int i = 0; i < 200 && detail::liveBufferBytes() > 30u * 1024 * 1024; ++i) {
+            SubsJ::gc(env);
+            std::this_thread::sleep_for(std::chrono::milliseconds(20));
+        }
+        EXPECT_LE(detail::liveBufferBytes(), 30u * 1024 * 1024);
+        detail::setBufferGcThreshold(64u * 1024 * 1024);
+        closeHandle(env, subscription);
+        closeHandle(env, source);
+    }
 } // namespace

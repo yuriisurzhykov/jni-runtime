@@ -65,6 +65,15 @@ namespace jnirt {
     namespace detail {
         // Defined in native_buffer.cpp: the ByteBuffer over the bytes, with the memory tied to its life.
         LocalRef<jobject> newNativeBuffer(JNIEnv *env, const NativeBuffer &buffer);
+
+        // The native memory of ByteBuffers that Java has not collected yet. A ByteBuffer made by NewDirectByteBuffer does
+        // not tell the garbage collector how big its memory is, so when more than the threshold (64 MiB by default)
+        // is alive, native_buffer.cpp asks for a collection (System.gc(), at most five times a second). ADR-0010 §9.
+        std::size_t liveBufferBytes() noexcept;
+
+        void setBufferGcThreshold(std::size_t bytes) noexcept;
+
+        long forcedCollections() noexcept;
     } // namespace detail
 
     // The row of the table: a NativeBuffer is a java.nio.ByteBuffer. A result, or an argument of a call into Java.

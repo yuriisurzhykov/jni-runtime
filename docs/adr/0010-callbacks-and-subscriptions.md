@@ -151,21 +151,33 @@ line in `Delivery` if wanted.)
 
 ### 9. A slow consumer
 
-The source emits every event; what to do with a queue is the business of `Delivery`: `post` delivers every event in the
-order of the executor; `postLatest` keeps at most one waiting event and replaces it by the next (`Flow.conflate()`, for
-video). A bounded queue and a `Flow` adapter (`callbackFlow { ...; awaitClose { subscription.close() } }`) are later,
-after a measurement on a real stream.
+The source emits every event; what to do with a queue is the business of `Delivery`:
 
-**Known risk, to measure (also P6.5):** a `ByteBuffer` over native memory does not tell the garbage collector how big the
-memory behind it is. Frames that `postLatest` dropped are released only when the collector takes the `ByteBuffer`, which may
-be late while the Java heap is fine. If the measurement shows it: `NativeAllocationRegistry`, or an explicit `release()`
-for dropped frames.
+| Method          | Queue                                              | Kotlin analogy                           |
+|-----------------|----------------------------------------------------|------------------------------------------|
+| `post`          | unbounded, every event, in order                   | `Channel(UNLIMITED)`                     |
+| `postLatest`    | one waiting event, replaced by the next            | `Flow.conflate()` (video)                |
+| `postBuffered`  | at most `backlog` waiting, the oldest is dropped   | `buffer(n, DROP_OLDEST)`                 |
+
+A `Flow` adapter is an extension in the application or library (`callbackFlow { subscribe(...); awaitClose { subscription.close() } }`),
+not in jnirt: jnirt has no dependency on coroutines. `examples/jni-modules-p7/.../CameraFlows.kt` is the reference: the end of
+collection closes the subscription, `onDisconnected` ends the flow with an exception.
+
+**Measured (P7.5), `tests/host/runtime/frame_memory_bench.cpp`:** a `ByteBuffer` made by `NewDirectByteBuffer` does not tell
+the garbage collector how big the memory behind it is. Frames of 1 MiB dropped by a slow consumer on a small Java heap piled
+up to **3000 MiB** of native memory before the collector took them. The risk is real, not theoretical.
+
+**Mitigation (done):** the runtime counts the bytes of live `NativeBuffer`s (the size is part of the owner kept in the peer
+table). Above 64 MiB, `newNativeBuffer` calls `System.gc()`, at most once per 200 ms. The same run peaks at **83 MiB**. The
+numbers are the property of the test (`DroppedFramesDoNotPileUpNativeMemory` asserts a bound), not of a device: `System.gc()`
+on ART is a request, and its cost on a phone is not measured. The threshold is `setBufferGcThreshold` (internal, for tests).
+`NativeAllocationRegistry` is not used: it is public only since API 31, and the counter works on every API level the library supports.
 
 ### 10. Not in P7
 
 - The reverse direction of the roadmap item (C++ giving Kotlin something callable): Kotlin calls C++ with a native method
   and a handle; `Runnable { camera.nativeFoo(handle) }` is one line in Kotlin.
-- `Function1`, `suspend`, `Flow` on the border; a weak listener; a bounded queue; the `Flow` adapter.
+- `Function1`, `suspend`, `Flow` on the border (the adapter is an extension, see §9); a weak listener.
 
 ## Consequences
 
@@ -189,4 +201,6 @@ for dropped frames.
 | events reach a Java listener; closing the subscription stops them and frees the `GlobalRef`; closing the owner frees it at once | `listener_test` (real JVM) |
 | a throwing Java listener does not stop the next; 5000 events from a native thread leave no local reference; `NativeBuffer` as an argument | `listener_test` (real JVM) |
 | `Listener` as a result or an argument of a call into Java does not compile                     | `compile_fail/listener_to_java` |
-| `Delivery`: runs on the executor, order, `shutdown` drops queued events, `postLatest`; `Subscription`: close, owner closes subscriptions, adopt on a closed owner, close inside the listener | `android/src/test` (`SubscriptionTest`) |
+| `Delivery`: runs on the executor, order, `shutdown` drops queued events, `postLatest`, `postBuffered` (bound, order, shutdown); `Subscription`: close, owner closes subscriptions, adopt on a closed owner, close inside the listener | `android/src/test` (`SubscriptionTest`) |
+| dropped 1 MiB frames do not pile up native memory (bound asserted; the bench prints the numbers)  | `listener_test`, `frame_memory_bench` |
+| the whole path on a computer's JVM: threads, close, throwing listener, bounded backlog, `Flow`  | `examples/jni-modules-p7/host-check` |

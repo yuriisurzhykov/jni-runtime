@@ -53,3 +53,9 @@ add_dependencies(jnirt_convert_bench jnirt_test_classes)
 
 # A Java listener called from native threads (ADR-0010).
 jnirt_add_jvm_test(runtime_listener_test listener_test.cpp)
+
+# How much native memory waits for the collector when frames are dropped (ADR-0010 §9): printed, not a test.
+add_executable(jnirt_frame_memory_bench frame_memory_bench.cpp)
+target_link_libraries(jnirt_frame_memory_bench PRIVATE jnirt::runtime jnirt::options ${JAVA_JVM_LIBRARY})
+target_compile_definitions(jnirt_frame_memory_bench PRIVATE JNIRT_TEST_CLASSPATH="${JNIRT_TEST_CLASSES_DIR}")
+add_dependencies(jnirt_frame_memory_bench jnirt_test_classes)
