@@ -39,9 +39,9 @@ Draft
 ## 2. close () vs in-flight calls
 
 - 2.1 Every native call on a peer holds a reference to its native object for the duration of the call.
-- 2.2 `close()` marks the peer closed. New calls fail immediately. The native object is destroyed when the last
-  in-flight
-  call releases it.
+- 2.2 `close()` marks the peer closed and calls the `onClose()` hook of its native object, so the resource is released
+  at once (a blocked call wakes up). New calls fail immediately. The native object is destroyed when the last
+  in-flight call releases it. *Details in ADR-0009.*
 - 2.3 `close()` never blocks waiting for in-flight calls or callbacks.
 
 ## 3. Threading
