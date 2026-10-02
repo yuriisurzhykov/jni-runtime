@@ -1,6 +1,7 @@
 package jnirt
 
 import java.io.Closeable
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicLong
 
 /**
@@ -30,6 +31,9 @@ abstract class NativePeer protected constructor(handle: Long) : Closeable {
 
     private val state = PeerState(handle)
 
+    // The subscriptions of this peer (ADR-0010 §4): closed with it.
+    private val subscriptions: MutableSet<Subscription> = ConcurrentHashMap.newKeySet()
+
     init {
         require(handle != 0L) { "${javaClass.simpleName}: the native side gave no handle" }
         PeerRuntime.guard.watch(this, state)
@@ -53,9 +57,20 @@ abstract class NativePeer protected constructor(handle: Long) : Closeable {
 
     /**
      * Releases the native object now. Safe to call twice and from any thread; it does not wait for calls in flight.
+     * Its subscriptions are closed too.
      * */
     override fun close() {
-        state.release()
+        state.release()                           // first: a subscription made from now on finds the peer closed
+        subscriptions.forEach { it.close() }
+    }
+
+    internal fun adopt(subscription: Subscription) {
+        subscriptions.add(subscription)
+        if (isClosed) subscription.close()        // close() may have missed it
+    }
+
+    internal fun forget(subscription: Subscription) {
+        subscriptions.remove(subscription)
     }
 }
 

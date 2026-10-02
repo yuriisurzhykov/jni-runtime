@@ -8,6 +8,7 @@ add_library(jnirt_runtime STATIC
         src/exception.cpp
         src/init.cpp
         src/kotlin_hints.cpp
+        src/listener.cpp
         src/log_forward.cpp
         src/native_buffer.cpp
         src/peer.cpp

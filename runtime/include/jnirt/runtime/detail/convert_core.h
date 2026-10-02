@@ -14,6 +14,8 @@
 //   static constexpr bool acceptsNull (optional) true: fromJava gets null (std::optional)
 //   static constexpr bool ownsPeer   (optional) true: the value is a Peer (peer.h): a handle is made on the way out, so
 //                                     it is good for a native parameter or result, not for a field, a collection or a call
+//   static constexpr bool allowedAsArgument (optional) true: an ownsPeer value that may be an argument of a call into
+//                                     Java after all (NativeBuffer, ADR-0010 §3)
 //   static constexpr bool borrowsFromJava (optional) true: the value points into the Java object (DirectBuffer), so
 //                                     it is good for a native parameter, not for the result of a call
 //
@@ -104,6 +106,17 @@ namespace jnirt {
 
         template<class Row>
         struct PeerFlag<Row, std::void_t<decltype(Row::ownsPeer)> > : std::bool_constant<Row::ownsPeer> {
+        };
+
+        // A row with ownsPeer that may still be an argument of a call into Java (a NativeBuffer: one new buffer for
+        // every call is what a frame callback needs; a Peer would make a new handle for the same object every time).
+        template<class Row, class = void>
+        struct ArgumentFlag : std::false_type {
+        };
+
+        template<class Row>
+        struct ArgumentFlag<Row, std::void_t<decltype(Row::allowedAsArgument)> >
+                : std::bool_constant<Row::allowedAsArgument> {
         };
 
         template<class Row, class = void>

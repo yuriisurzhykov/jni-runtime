@@ -9,7 +9,8 @@
 // pull the memory from under a frame that Kotlin still holds. (If a frame must not outlive the camera, let the owner
 // be the camera itself: then the memory goes after both.)
 //
-// Result only. The bytes are big-endian when read as Int or Long, like every ByteBuffer; `order()` changes that.
+// A result of a native, or an argument of a call into Java (a frame handed to a listener, listener.h): a new buffer for
+// every one. Not a parameter, a collection, an optional or a field. The bytes are big-endian when read as Int or Long, like every ByteBuffer; `order()` changes that.
 // Kotlin must not write to a frame that native code still writes to; that is the library's contract, as with any
 // shared memory.
 //
@@ -64,15 +65,25 @@ namespace jnirt {
     namespace detail {
         // Defined in native_buffer.cpp: the ByteBuffer over the bytes, with the memory tied to its life.
         LocalRef<jobject> newNativeBuffer(JNIEnv *env, const NativeBuffer &buffer);
+
+        // The native memory of ByteBuffers that Java has not collected yet. A ByteBuffer made by NewDirectByteBuffer does
+        // not tell the garbage collector how big its memory is, so when more than the threshold (64 MiB by default)
+        // is alive, native_buffer.cpp asks for a collection (System.gc(), at most five times a second). ADR-0010 §9.
+        std::size_t liveBufferBytes() noexcept;
+
+        void setBufferGcThreshold(std::size_t bytes) noexcept;
+
+        long forcedCollections() noexcept;
     } // namespace detail
 
-    // The row of the table: a NativeBuffer is a java.nio.ByteBuffer. A result and nothing else.
+    // The row of the table: a NativeBuffer is a java.nio.ByteBuffer. A result, or an argument of a call into Java.
     template<>
     struct Convert<NativeBuffer> {
         using Jni = jobject;
         using Value = NativeBuffer;
         static constexpr auto descriptor = detail::text("Ljava/nio/ByteBuffer;");
         static constexpr bool ownsPeer = true; // like Peer: a handle is made on the way out
+        static constexpr bool allowedAsArgument = true; // unlike Peer, also an argument of a call into Java (ADR-0010 §3)
 
         // Not a parameter: Kotlin's buffer is read with DirectBuffer, which borrows it for the call (ADR-0008 §3).
         template<class Never = void>
