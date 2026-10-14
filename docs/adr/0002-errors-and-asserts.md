@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed. The C++ side (`support`) is implemented; the Kotlin side and `entry()` are implemented in P4 and described in
+Accepted. The C++ side (`support`) is implemented; the Kotlin side and `entry()` are implemented in P4 and described in
 [ADR-0007](0007-exceptions-entry-and-log-sink.md), which also fixes the names `JnirtError` and `Outcome` used below.
 
 ## Context

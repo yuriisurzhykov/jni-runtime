@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed. Implementation: roadmap P6.1 to P6.5. Design discussion:
+Accepted. Implemented in roadmap P6.1 to P6.5. Design discussion:
 `design/p6-design.md` in the project files.
 
 ## Context

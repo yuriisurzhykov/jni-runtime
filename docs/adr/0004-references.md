@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed. Implementation: roadmap P3.2. Principles and the way of thinking behind it:
+Accepted. Implemented in roadmap P3.2. Principles and the way of thinking behind it:
 [learning/thinking-in-jnirt.md](../learning/thinking-in-jnirt.md).
 
 ## Context

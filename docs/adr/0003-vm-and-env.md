@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed. Implementation: roadmap P3.1. Walkthrough with
+Accepted. Implemented in roadmap P3.1. Walkthrough with
 examples: [learning/vm-env-by-example.md](../learning/vm-env-by-example.md).
 
 ## Context
