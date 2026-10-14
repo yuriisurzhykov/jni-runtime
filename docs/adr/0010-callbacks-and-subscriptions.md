@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed. Implementation: roadmap P7.1 to P7.4. Design discussion: `design/p7-design.md` in the project files.
+Accepted. Implemented in roadmap P7.1 to P7.5. Design discussion: `design/p7-design.md` in the project files.
 Walkthrough with an example: [learning/callbacks-by-example.md](../learning/callbacks-by-example.md).
 
 ## Context

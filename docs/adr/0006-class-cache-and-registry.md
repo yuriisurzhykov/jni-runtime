@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed. Implementation: roadmap P3.4, P3.5, P3.6. Explained with examples:
+Accepted. Implemented in roadmap P3.4, P3.5, P3.6. Explained with examples:
 [learning/class-cache-and-registry-by-example.md](../learning/class-cache-and-registry-by-example.md).
 
 ## Context

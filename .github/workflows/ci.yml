@@ -1,0 +1,60 @@
+name: CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  host-tests:
+    name: host tests (${{ matrix.name }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: plain
+            flags: ""
+            filter: ".*"
+          # LeakSanitizer is off: it reports allocations inside the JVM that the tests start.
+          - name: asan-ubsan
+            flags: "-fsanitize=address,undefined -fno-omit-frame-pointer"
+            filter: ".*"
+          # ThreadSanitizer covers the lock-based parts (roadmap P6.1, P7.1).
+          - name: tsan
+            flags: "-fsanitize=thread -fno-omit-frame-pointer"
+            filter: "PeerTable|ListenerSet"
+    env:
+      ASAN_OPTIONS: detect_leaks=0
+      UBSAN_OPTIONS: halt_on_error=1:print_stacktrace=1
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y ninja-build libgtest-dev
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Check that support/ does not include jni.h
+        run: |
+          if grep -rn "jni.h" support; then
+            echo "support/ must not depend on jni.h" >&2
+            exit 1
+          fi
+
+      - name: Configure
+        run: >
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug
+          -DCMAKE_CXX_FLAGS="${{ matrix.flags }}"
+          -DCMAKE_EXE_LINKER_FLAGS="${{ matrix.flags }}"
+          -DCMAKE_SHARED_LINKER_FLAGS="${{ matrix.flags }}"
+
+      - name: Build
+        run: cmake --build build
+
+      - name: Test
+        run: ctest --test-dir build --output-on-failure -j4 -R "${{ matrix.filter }}"

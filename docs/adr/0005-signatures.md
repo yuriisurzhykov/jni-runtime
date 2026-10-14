@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed. Implementation: roadmap P3.3. Explained with examples:
+Accepted. Implemented in roadmap P3.3. Explained with examples:
 [learning/signatures-by-example.md](../learning/signatures-by-example.md).
 
 ## Context

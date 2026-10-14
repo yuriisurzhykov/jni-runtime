@@ -22,7 +22,7 @@ P0 Design ─► P1 Build skeleton ─► P2 support (log ✔, error ✔, assert
                         │                               │
                         └───────────────┬───────────────┘
                                         ▼
-                               P7 Callbacks & subscriptions
+                               P7 Callbacks & subscriptions ✔
                                         ▼
                                P8 Release hardening (R8, sanitizers)
                                         ▼
@@ -166,7 +166,7 @@ Design: [ADR-0009](adr/0009-peers.md).
 | P6.1 | `PeerTable`: handles that are never reused, type tag, `onClose()` hook outside every lock, `close()` idempotent                | `[x]`  |
 | P6.2 | `Peer<T>` as a native parameter and result (row of `Convert<T>`), `makePeer`, the native `NativePeerNatives.close`              | `[x]`  |
 | P6.3 | Kotlin `NativePeer : Closeable`, `PeerState`, `LeakGuard` (`Cleaner` on API 33+, `PhantomReference` + `ReferenceQueue` below)   | `[x]`  |
-| P6.4 | Race tests: `close()` against a blocked call and against many callers, ThreadSanitizer; the example module `p6_demo`            | `[~]` tests done, example not started |
+| P6.4 | Race tests: `close()` against a blocked call and against many callers, ThreadSanitizer; example `jni-modules-p6` (kept with the project's examples) | `[x]` host-check green; **not run on a device** |
 | P6.5 | `NativeBuffer`: native memory given to Kotlin as a direct `ByteBuffer`, released when the buffer is collected (ADR-0009 §9)     | `[x]`  |
 
 **Exit criteria:** no crash under stress test (TSan clean); the resource is released at once by `close()`, destruction
