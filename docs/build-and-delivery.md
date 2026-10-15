@@ -109,7 +109,7 @@ In the app's CMake, restrict the exports of the one library:
 
 ```cmake
 add_library(unified_native SHARED entry/jni_onload.cpp)
-jnirt_restrict_exports(unified_native)     # only JNI_OnLoad / JNI_OnUnload stay visible
+jnirt_restrict_exports(unified_native)     # only JNI_OnLoad stays visible
 ```
 
 `-fvisibility=hidden` already hides our code, but header-only parts of the C++ library (`std::shared_ptr`, `operator new`)
