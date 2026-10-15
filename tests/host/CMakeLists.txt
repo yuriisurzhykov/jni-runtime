@@ -47,3 +47,4 @@ foreach (case IN LISTS JNIRT_COMPILE_FAIL_CASES)
             -DSOURCE=${case}
             -P ${CMAKE_CURRENT_SOURCE_DIR}/compile_fail.cmake)
 endforeach ()
+add_subdirectory(binary)

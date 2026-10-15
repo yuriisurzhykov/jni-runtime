@@ -1,0 +1,10 @@
+/* Version script for the consumer's .so: the only symbols the dynamic linker sees are the two JNI entry points.
+   -fvisibility=hidden already hides our own code; this also hides what header-only code of the C++ library
+   (std::shared_ptr, std::string, operator new) emits with default visibility. */
+{
+    global:
+        JNI_OnLoad;
+        JNI_OnUnload;
+    local:
+        *;
+};

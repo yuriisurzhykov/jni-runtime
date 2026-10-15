@@ -2,6 +2,10 @@ cmake_minimum_required(VERSION 3.22)
 project(jni_runtime VERSION 0.1.0 LANGUAGES CXX)
 
 include(${CMAKE_CURRENT_LIST_DIR}/cmake/jnirtWarnings.cmake)
+include(${CMAKE_CURRENT_LIST_DIR}/cmake/jnirtExports.cmake)
+
+# The static libraries end up inside a shared library (the consumer's .so), so they must be position independent.
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 add_subdirectory(support)
 add_subdirectory(runtime)
