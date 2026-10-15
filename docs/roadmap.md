@@ -197,8 +197,11 @@ Kotlin side runs under JUnit on the host. The example runs on the host JVM; a ru
 - `@NativeAccessed` marker annotation, `consumer-rules.pro` in `jnirt-kotlin` and in each library.
 - Instrumented tests on a **minified R8** build; selfcheck catches missing keeps at startup.
 - CheckJNI, ASan/HWASan runs, TSan on host.
-- Symbol handling: keep debug symbols in CI artifacts for tombstone symbolication.
-- Verify: only `JNI_OnLoad` exported, one `c++_shared`, 16 KB alignment.
+- `[x]` Verify: only `JNI_OnLoad` exported, no `libstdc++`, at most one `c++_shared` in `NEEDED`, 16 KB alignment:
+  `tools/check-native-lib.sh`, tested on host libraries (`tests/host/binary`) and run on an NDK build by the CI job
+  `android-binary` (**that job has not run yet**). `jnirt_restrict_exports(target)` (a version script) gives the
+  consumer's `.so` its single export. Still to do: one `libc++_shared.so` per ABI in the APK, which only the app can check.
+- `[x]` Symbol handling: the `android-binary` job keeps the unstripped `.so` as a CI artifact for tombstone symbolication.
 - **Deferred from P4 (D9): native backtrace in the log when `entry()` catches an error.** By the time of `catch` the stack
   is already unwound, so a real backtrace has to be captured at `throw` time (inside `jnirt::Error` / `JNIRT_REQUIRE`
   / `JNIRT_CHECK`), for example with `_Unwind_Backtrace` plus symbol handling. P4 only adds `(file:line)` to the message.

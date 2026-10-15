@@ -103,6 +103,28 @@ include(":wifi-cameras"); project(":wifi-cameras").projectDir = file("third_part
 
 Library Gradle modules contain Kotlin only, with no `externalNativeBuild`.
 
+## Checking the finished `.so`
+
+In the app's CMake, restrict the exports of the one library:
+
+```cmake
+add_library(unified_native SHARED entry/jni_onload.cpp)
+jnirt_restrict_exports(unified_native)     # only JNI_OnLoad stays visible
+```
+
+`-fvisibility=hidden` already hides our code, but header-only parts of the C++ library (`std::shared_ptr`, `operator new`)
+can still end up exported; the version script closes that. Then run the check on the built file:
+
+```
+tools/check-native-lib.sh --require-symbols app/build/intermediates/cxx/.../libunified_native.so
+```
+
+It fails, and prints every broken rule, when the library exports anything but `JNI_OnLoad`, needs `libstdc++` or lists
+`libc++_shared.so` twice, has a `LOAD` segment aligned to less than 16 KB, or (with `--require-symbols`) was stripped.
+On NDK r27 the 16 KB alignment needs `-DANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES=ON` (r28 and later do it by default).
+Keep the unstripped file of every release build: `ndk-stack` and tombstone symbolication need it.
+CI does the same for a small sample library (`ci/android-lib`).
+
 ## Rules
 
 1. **One `.so`, one `JNI_OnLoad`**, owned by `unified`.
