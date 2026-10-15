@@ -30,3 +30,9 @@ add_test(NAME NativeLib.SmallPagesAreCaught
         COMMAND ${JNIRT_CHECK_SCRIPT} --allow-libstdcxx $<TARGET_FILE:jnirt_lib_small_pages>)
 set_tests_properties(NativeLib.SmallPagesAreCaught PROPERTIES
         PASS_REGULAR_EXPRESSION "FAIL: .*aligned to 4096 bytes")
+
+# A file the tools cannot read is an error, never an OK (the script itself is not an ELF file).
+add_test(NAME NativeLib.UninspectableFileIsAnError
+        COMMAND ${JNIRT_CHECK_SCRIPT} ${JNIRT_CHECK_SCRIPT})
+set_tests_properties(NativeLib.UninspectableFileIsAnError PROPERTIES
+        PASS_REGULAR_EXPRESSION "ERROR: .*cannot inspect the library")
